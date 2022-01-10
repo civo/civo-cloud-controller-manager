@@ -1,0 +1,94 @@
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: civo-ccm-sa
+  namespace: kube-system
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: civo-ccm-role
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "update", "patch"]  
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: civo-ccm-binding
+subjects:
+  - kind: ServiceAccount
+    name: civo-ccm-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: civo-ccm-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: kube-system
+  name: civo-ccm
+  labels:
+    app: civo-ccm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: civo-ccm
+  template:
+    metadata:
+      labels:
+        app: civo-ccm
+        role: civo-ccm
+    spec:
+      serviceAccount: civo-ccm-sa
+      containers:
+      - name: civo-ccm
+        image: vishalanarase/main.go-487b642da2752cb96139bf76997243cf
+        args:
+          - "--cloud-provider=civo"
+        env:
+            - name: CIVO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: civo-api-access
+                  key: api-key
+            - name: CIVO_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: civo-api-access
+                  key: region
+            - name: CIVO_NAMESPACE
+              valueFrom:
+                secretKeyRef:
+                  name: civo-api-access
+                  key: namespace
+            - name: CIVO_CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: civo-api-access
+                  key: cluster-id
+            - name: CIVO_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: civo-api-access
+                  key: api-url
+        imagePullPolicy: "Always"

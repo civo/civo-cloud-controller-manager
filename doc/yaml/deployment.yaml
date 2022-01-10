@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-echo-pods
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mirror-pod
+  template:
+    metadata:
+      labels:
+        app: mirror-pod
+    spec:
+      containers:
+      - name: mirror-pod
+        image: mendhak/http-https-echo
+        ports:
+        - containerPort: 80
+          protocol: TCP
+       
