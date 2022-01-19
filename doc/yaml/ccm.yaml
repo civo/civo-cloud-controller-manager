@@ -62,7 +62,7 @@ spec:
       serviceAccount: civo-ccm-sa
       containers:
       - name: civo-ccm
-        image: vishalanarase/main.go-487b642da2752cb96139bf76997243cf
+        image: civo/civo-clould-controller-manager:latest
         args:
           - "--cloud-provider=civo"
         env:
