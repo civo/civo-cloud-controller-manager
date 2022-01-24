@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/civo/civogo"
+	"k8s.io/client-go/informers"
 	cloudprovider "k8s.io/cloud-provider"
 )
 
@@ -22,6 +23,7 @@ var (
 type cloud struct {
 	instances     cloudprovider.Instances
 	loadbalancers cloudprovider.LoadBalancer
+	clients       *clients
 }
 
 func init() {
@@ -36,13 +38,12 @@ func newCloud() (cloudprovider.Interface, error) {
 		return nil, err
 	}
 
+	clients := newClients(client)
+
 	return &cloud{
-		instances: &instances{
-			civoClient: client,
-		},
-		loadbalancers: &loadbalancer{
-			civoClient: client,
-		},
+		clients:       clients,
+		instances:     newInstances(clients),
+		loadbalancers: newLoadBalancers(clients),
 	}, nil
 }
 
@@ -50,6 +51,13 @@ func newCloud() (cloudprovider.Interface, error) {
 // to perform housekeeping or run custom controllers specific to the cloud provider.
 // Any tasks started here should be cleaned up when the stop channel closes.
 func (c *cloud) Initialize(clientBuilder cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
+	clientset := clientBuilder.ClientOrDie("do-shared-informers")
+	sharedInformer := informers.NewSharedInformerFactory(clientset, 0)
+
+	c.clients.kclient = clientset
+
+	sharedInformer.Start(nil)
+	sharedInformer.WaitForCacheSync(nil)
 }
 
 func (c *cloud) Instances() (cloudprovider.Instances, bool) {

@@ -13,7 +13,7 @@ github.com/beorn7/perks/quantile
 github.com/blang/semver
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/civo/civogo v0.0.0-00010101000000-000000000000 => /Users/vishal/workpublic/civo/civogo
+# github.com/civo/civogo v0.2.62
 ## explicit
 github.com/civo/civogo
 github.com/civo/civogo/utils
@@ -820,7 +820,6 @@ sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml
-# github.com/civo/civogo => /Users/vishal/workpublic/civo/civogo
 # github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 # github.com/openshift/api => github.com/openshift/api v0.0.0-20200526144822-34f54f12813a
 # github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c

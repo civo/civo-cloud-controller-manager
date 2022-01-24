@@ -86,6 +86,7 @@ type KubernetesCluster struct {
 	Pools                 []KubernetesPool                 `json:"pools,omitempty"`
 	InstalledApplications []KubernetesInstalledApplication `json:"installed_applications,omitempty"`
 	FirewallID            string                           `json:"firewall_id,omitempty"`
+	CNIPlugin             string                           `json:"cni_plugin,omitempty"`
 }
 
 // PaginatedKubernetesClusters is a Kubernetes k3s cluster
@@ -110,6 +111,7 @@ type KubernetesClusterConfig struct {
 	Applications      string                        `json:"applications,omitempty"`
 	InstanceFirewall  string                        `json:"instance_firewall,omitempty"`
 	FirewallRule      string                        `json:"firewall_rule,omitempty"`
+	CNIPlugin         string                        `json:"cni_plugin,omitempty"`
 }
 
 //KubernetesClusterPoolConfig is used to create a new cluster pool
@@ -302,13 +304,13 @@ func (c *Client) ListAvailableKubernetesVersions() ([]KubernetesVersion, error) 
 }
 
 // ListKubernetesClusterInstances returns all cluster instances
-func (c *Client) ListKubernetesClusterInstances(id string) (*[]Instance, error) {
+func (c *Client) ListKubernetesClusterInstances(id string) ([]Instance, error) {
 	resp, err := c.SendGetRequest(fmt.Sprintf("/v2/kubernetes/clusters/%s/instances", id))
 	if err != nil {
 		return nil, decodeError(err)
 	}
 
-	instances := &[]Instance{}
+	instances := make([]Instance, 0)
 	if err := json.NewDecoder(bytes.NewReader(resp)).Decode(&instances); err != nil {
 		return nil, err
 	}
@@ -327,7 +329,7 @@ func (c *Client) FindKubernetesClusterInstance(clusterID, search string) (*Insta
 	partialMatchesCount := 0
 	result := Instance{}
 
-	for _, value := range *instances {
+	for _, value := range instances {
 		if strings.EqualFold(value.Hostname, search) || value.ID == search {
 			exactMatch = true
 			result = value

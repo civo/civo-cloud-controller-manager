@@ -3,7 +3,7 @@ module github.com/civo/civo-cloud-controller-manager
 go 1.16
 
 require (
-	github.com/civo/civogo v0.0.0-00010101000000-000000000000
+	github.com/civo/civogo v0.2.62
 	github.com/emicklei/go-restful v2.11.1+incompatible // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
@@ -21,7 +21,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
-	k8s.io/client-go v12.0.0+incompatible // indirect
+	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/cloud-provider v0.21.1
 	k8s.io/component-base v0.21.1
 	k8s.io/klog/v2 v2.9.0
@@ -29,7 +29,6 @@ require (
 )
 
 replace (
-	github.com/civo/civogo => /Users/vishal/workpublic/civo/civogo
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20200526144822-34f54f12813a
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
