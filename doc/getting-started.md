@@ -15,7 +15,7 @@ Unlike other operators, you can't as easily run CCM locally just connected in to
 6. Create all(SA,ClusterRole,ClusterRoleBinding,Deployment) in one (Add docker image in the deployment)
 
     ```bash
-        kubectl create -f doc/yaml/ccm.yaml --kubeconfig kubeconfig
+        kubectl create -f doc/yaml/ccm-install.yaml --kubeconfig kubeconfig
     ```
 ### B. Run CCM from cli or outside of container
 
