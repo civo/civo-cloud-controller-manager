@@ -14,7 +14,10 @@ rules:
     verbs: ["list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["nodes/status"]
+    verbs: ["patch"]
   - apiGroups: [""]
     resources: ["services"]
     verbs: ["get", "list", "watch", "update", "patch"]
@@ -60,6 +63,11 @@ spec:
         role: civo-ccm
     spec:
       serviceAccount: civo-ccm-sa
+      tolerations:
+      # this is required so CCM can bootstrap itself
+      - key: node.cloudprovider.kubernetes.io/uninitialized
+        value: "true"
+        effect: NoSchedule
       containers:
       - name: civo-ccm
         image: civo/civo-cloud-controller-manager:latest
