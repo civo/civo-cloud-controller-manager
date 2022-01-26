@@ -62,7 +62,7 @@ spec:
       serviceAccount: civo-ccm-sa
       containers:
       - name: civo-ccm
-        image: civo/civo-clould-controller-manager:latest
+        image: civo/civo-cloud-controller-manager:latest
         args:
           - "--cloud-provider=civo"
         env:

@@ -41,5 +41,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            civo/civo-clould-controller-manager:${{ steps.tag.outputs.tag }}
-            civo/civo-clould-controller-manager:latest
+            civo/civo-cloud-controller-manager:${{ steps.tag.outputs.tag }}
+            civo/civo-cloud-controller-manager:latest
