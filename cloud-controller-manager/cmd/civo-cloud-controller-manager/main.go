@@ -28,6 +28,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s, CIVO_API_KEY: %s, CIVO_CLUSTER_ID: %s", civo.ApiURL, civo.Region, civo.ApiKey, civo.ClusterID)
+
 	opts, err := options.NewCloudControllerManagerOptions()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to construct options: %v\n", err)

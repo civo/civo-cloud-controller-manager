@@ -61,7 +61,6 @@ func (i *instances) NodeAddressesByProviderID(ctx context.Context, providerID st
 // cloudprovider.InstanceNotFound should NOT be returned for instances that exist but are stopped/sleeping
 func (i *instances) InstanceID(ctx context.Context, nodeName types.NodeName) (string, error) {
 	instance, err := utils.CivoInstanceFromName(ClusterID, string(nodeName), i.client.civoClient)
-
 	if err != nil {
 		return "", err
 	}
