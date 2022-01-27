@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	cloudprovider "k8s.io/cloud-provider"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -29,6 +30,7 @@ func newInstances(c *clients) cloudprovider.Instances {
 func (i *instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1.NodeAddress, error) {
 	instance, err := utils.CivoInstanceFromName(ClusterID, string(name), i.client.civoClient)
 	if err != nil {
+		klog.Errorf("Unable to get instance by name: %s, error: %v", string(name), err)
 		return nil, err
 	}
 
@@ -47,6 +49,7 @@ func (i *instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v
 func (i *instances) NodeAddressesByProviderID(ctx context.Context, providerID string) ([]v1.NodeAddress, error) {
 	instance, err := utils.CivoInstanceFromProviderID(providerID, ClusterID, i.client.civoClient)
 	if err != nil {
+		klog.Errorf("Unable to get instance by provider id: %s, error: %v", providerID, err)
 		return nil, err
 	}
 
@@ -62,6 +65,7 @@ func (i *instances) NodeAddressesByProviderID(ctx context.Context, providerID st
 func (i *instances) InstanceID(ctx context.Context, nodeName types.NodeName) (string, error) {
 	instance, err := utils.CivoInstanceFromName(ClusterID, string(nodeName), i.client.civoClient)
 	if err != nil {
+		klog.Errorf("Unable to get instance by name: %s, error: %v", string(nodeName), err)
 		return "", err
 	}
 
@@ -72,6 +76,7 @@ func (i *instances) InstanceID(ctx context.Context, nodeName types.NodeName) (st
 func (i *instances) InstanceType(ctx context.Context, name types.NodeName) (string, error) {
 	instance, err := utils.CivoInstanceFromName(ClusterID, string(name), i.client.civoClient)
 	if err != nil {
+		klog.Errorf("Unable to get instance by name: %s, error: %v", string(name), err)
 		return "", err
 	}
 
@@ -82,6 +87,7 @@ func (i *instances) InstanceType(ctx context.Context, name types.NodeName) (stri
 func (i *instances) InstanceTypeByProviderID(ctx context.Context, providerID string) (string, error) {
 	instance, err := utils.CivoInstanceFromProviderID(providerID, ClusterID, i.client.civoClient)
 	if err != nil {
+		klog.Errorf("Unable to get instance by provider id: %s, error: %v", providerID, err)
 		return "", err
 	}
 
@@ -106,6 +112,7 @@ func (*instances) CurrentNodeName(ctx context.Context, hostname string) (types.N
 func (i *instances) InstanceExistsByProviderID(ctx context.Context, providerID string) (bool, error) {
 	_, err := utils.CivoInstanceFromProviderID(providerID, ClusterID, i.client.civoClient)
 	if err != nil && !errors.IsNotFound(err) {
+		klog.Errorf("Unable to get instance by provider id: %s, error: %v", providerID, err)
 		return true, err
 	}
 
@@ -120,6 +127,7 @@ func (i *instances) InstanceExistsByProviderID(ctx context.Context, providerID s
 func (i *instances) InstanceShutdownByProviderID(ctx context.Context, providerID string) (bool, error) {
 	instance, err := utils.CivoInstanceFromProviderID(providerID, ClusterID, i.client.civoClient)
 	if err != nil {
+		klog.Errorf("Unable to get instance by provider id: %s, error: %v", providerID, err)
 		return false, nil
 	}
 
