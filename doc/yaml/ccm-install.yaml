@@ -63,7 +63,7 @@ spec:
         role: civo-ccm
     spec:
       serviceAccount: civo-ccm-sa
-      dnsPolicy: Default                                                                                                                                                                                       │
+      dnsPolicy: Default
       hostNetwork: true
       tolerations:
       # this is required so CCM can bootstrap itself
