@@ -55,7 +55,7 @@ func newLoadBalancers(c *clients) cloudprovider.LoadBalancer {
 func (l *loadbalancer) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (*v1.LoadBalancerStatus, bool, error) {
 	civolb, err := getLoadBalancer(ctx, l.client.civoClient, l.client.kclient, clusterName, service)
 	if err != nil {
-		if strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) {
+		if strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) || strings.Contains(err.Error(), string(civogo.DatabaseLoadBalancerNotFoundError)) {
 			return nil, false, nil
 		}
 		klog.Errorf("Unable to get loadbalancer, error: %v", err)
@@ -83,7 +83,7 @@ func (*loadbalancer) GetLoadBalancerName(_ context.Context, clusterName string, 
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
 	civolb, err := getLoadBalancer(ctx, l.client.civoClient, l.client.kclient, clusterName, service)
-	if err != nil && !strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) {
+	if err != nil && !strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) && !strings.Contains(err.Error(), string(civogo.DatabaseLoadBalancerNotFoundError)) {
 		klog.Errorf("Unable to create loadbalancer, error: %v", err)
 		return nil, err
 	}
@@ -151,7 +151,10 @@ func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName strin
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
 	civolb, err := getLoadBalancer(ctx, l.client.civoClient, l.client.kclient, clusterName, service)
-	if err != nil && !strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) {
+	if err != nil {
+		if strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) || strings.Contains(err.Error(), string(civogo.DatabaseLoadBalancerNotFoundError)) {
+			return nil
+		}
 		klog.Errorf("Unable to get loadbalancer, error: %v", err)
 		return err
 	}
@@ -217,7 +220,10 @@ func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName strin
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l *loadbalancer) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
 	civolb, err := getLoadBalancer(ctx, l.client.civoClient, l.client.kclient, clusterName, service)
-	if err != nil && !strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) {
+	if err != nil {
+		if strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) || strings.Contains(err.Error(), string(civogo.DatabaseLoadBalancerNotFoundError)) {
+			return nil
+		}
 		klog.Errorf("Unable to get loadbalancer, error: %v", err)
 		return err
 	}
