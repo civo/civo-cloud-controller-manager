@@ -28,7 +28,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s CIVO_CLUSTER_ID: %s", civo.ApiURL, civo.Region, civo.ClusterID)
+	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s, CIVO_CLUSTER_ID: %s", civo.ApiURL, civo.Region, civo.ClusterID)
 
 	opts, err := options.NewCloudControllerManagerOptions()
 	if err != nil {
