@@ -74,7 +74,7 @@ func (l *loadbalancer) GetLoadBalancer(ctx context.Context, clusterName string, 
 // GetLoadBalancerName returns the name of the load balancer. Implementations must treat the
 // *v1.Service parameter as read-only and not modify it.
 func (*loadbalancer) GetLoadBalancerName(_ context.Context, clusterName string, service *v1.Service) string {
-	return getLoadBalancerName(clusterName, service)
+	return service.Annotations[annotationCivoLoadBalancerName]
 }
 
 // EnsureLoadBalancer creates a new load balancer 'name', or updates the existing one. Returns the status of the balancer
