@@ -13,7 +13,7 @@ github.com/beorn7/perks/quantile
 github.com/blang/semver
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/civo/civogo v0.2.63
+# github.com/civo/civogo v0.2.66
 ## explicit
 github.com/civo/civogo
 github.com/civo/civogo/utils
