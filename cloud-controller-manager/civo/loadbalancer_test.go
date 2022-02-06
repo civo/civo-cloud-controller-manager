@@ -101,3 +101,57 @@ func TestGetFirewallID(t *testing.T) {
 		})
 	}
 }
+
+func TestGetEnableProxyProtocol(t *testing.T) {
+	g := NewWithT(t)
+	tests := []struct {
+		name        string
+		enableProxy string
+		service     *corev1.Service
+	}{
+		{
+			"EnableProxyProtocol is not set",
+			"",
+			&corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+		{
+			"EnableProxyProtocol should be set to send-proxy",
+			"send-proxy",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+		{
+			"EnableProxyProtocol should be set to send-proxy-v2",
+			"send-proxy-v2",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy-v2",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			proxy := getEnableProxyProtocol(test.service)
+			g.Expect(proxy).To(Equal(test.enableProxy))
+		})
+	}
+}
