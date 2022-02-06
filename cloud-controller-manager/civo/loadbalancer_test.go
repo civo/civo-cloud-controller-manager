@@ -155,3 +155,69 @@ func TestGetEnableProxyProtocol(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateServiceAnnotation(t *testing.T) {
+	g := NewWithT(t)
+	tests := []struct {
+		name       string
+		service    *corev1.Service
+		annotation string
+		value      string
+		expected   *corev1.Service
+	}{
+		{
+			"Annotation firewall-id should be set to fc91d382-2609-4f5c-a875-1491776fab8c",
+			&corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+			"kubernetes.civo.com/firewall-id",
+			"fc91d382-2609-4f5c-a875-1491776fab8c",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/firewall-id": "fc91d382-2609-4f5c-a875-1491776fab8c",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+		{
+			"Annotation for algorithm should be set to round-robin with existing annotation",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+			"kubernetes.civo.com/loadbalancer-algorithm",
+			"round-robin",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
+						"kubernetes.civo.com/loadbalancer-algorithm":             "round-robin",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			updateServiceAnnotation(test.service, test.annotation, test.value)
+			g.Expect(test.service.ObjectMeta.Annotations[test.annotation]).To(Equal(test.expected.ObjectMeta.Annotations[test.annotation]))
+			g.Expect(test.service).To(Equal(test.expected))
+		})
+	}
+}
