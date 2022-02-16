@@ -6,11 +6,11 @@ import (
 )
 
 type clients struct {
-	civoClient *civogo.Client
+	civoClient civogo.Clienter
 	kclient    kubernetes.Interface
 }
 
-func newClients(client *civogo.Client) *clients {
+func newClients(client civogo.Clienter) *clients {
 	return &clients{
 		civoClient: client,
 	}

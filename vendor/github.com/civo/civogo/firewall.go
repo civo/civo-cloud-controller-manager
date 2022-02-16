@@ -57,6 +57,8 @@ type FirewallConfig struct {
 	Name      string `json:"name"`
 	Region    string `json:"region"`
 	NetworkID string `json:"network_id"`
+	// CreateRules if not send the value will be nil, that mean the default rules will be created
+	CreateRules *bool `json:"create_rules,omitempty"`
 }
 
 // ListFirewalls returns all firewall owned by the calling API account
@@ -109,8 +111,8 @@ func (c *Client) FindFirewall(search string) (*Firewall, error) {
 }
 
 // NewFirewall creates a new firewall record
-func (c *Client) NewFirewall(name, networkid string) (*FirewallResult, error) {
-	fw := FirewallConfig{Name: name, Region: c.Region, NetworkID: networkid}
+func (c *Client) NewFirewall(name, networkid string, CreateRules *bool) (*FirewallResult, error) {
+	fw := FirewallConfig{Name: name, Region: c.Region, NetworkID: networkid, CreateRules: CreateRules}
 	body, err := c.SendPostRequest("/v2/firewalls", fw)
 	if err != nil {
 		return nil, decodeError(err)
