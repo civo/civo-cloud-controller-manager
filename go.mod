@@ -3,7 +3,7 @@ module github.com/civo/civo-cloud-controller-manager
 go 1.16
 
 require (
-	github.com/civo/civogo v0.2.66
+	github.com/civo/civogo v0.2.70
 	github.com/emicklei/go-restful v2.11.1+incompatible // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
@@ -12,8 +12,7 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/onsi/ginkgo v1.16.4 // indirect
-	github.com/onsi/gomega v1.13.0 // indirect
+	github.com/onsi/gomega v1.18.0
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	go.uber.org/zap v1.17.0 // indirect

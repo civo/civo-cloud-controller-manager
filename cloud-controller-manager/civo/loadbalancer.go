@@ -241,7 +241,7 @@ func getLoadBalancerName(clusterName string, service *v1.Service) string {
 	return fmt.Sprintf("%s-%s-%s", clusterName, service.Namespace, service.Name)
 }
 
-func getLoadBalancer(ctx context.Context, c *civogo.Client, kclient kubernetes.Interface, clusterName string, service *v1.Service) (*civogo.LoadBalancer, error) {
+func getLoadBalancer(ctx context.Context, c civogo.Clienter, kclient kubernetes.Interface, clusterName string, service *v1.Service) (*civogo.LoadBalancer, error) {
 	var err error
 	var civolb *civogo.LoadBalancer
 	if id, ok := service.Annotations[annotationCivoLoadBalancerID]; ok {
@@ -271,7 +271,7 @@ func getLoadBalancer(ctx context.Context, c *civogo.Client, kclient kubernetes.I
 	return civolb, err
 }
 
-func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node, civoClient *civogo.Client, kclient kubernetes.Interface) error {
+func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node, civoClient civogo.Clienter, kclient kubernetes.Interface) error {
 	cluster, err := civoClient.GetKubernetesCluster(ClusterID)
 	if err != nil {
 		klog.Errorf("Unable to get kubernetes cluster, error: %v", err)

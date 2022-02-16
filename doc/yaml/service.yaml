@@ -2,6 +2,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: test-service
+  annotations:
+    kubernetes.civo.com/loadbalancer-algorithm: least_connections
 spec:
   selector:
     app: mirror-pod

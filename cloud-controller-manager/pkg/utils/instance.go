@@ -21,7 +21,7 @@ func civoInstanceIDFromProviderID(providerID string) (string, error) {
 	return strings.TrimPrefix(providerID, "civo://"), nil
 }
 
-func civoInstanceFromID(clusterID, instanceID string, c *civogo.Client) (civogo.Instance, error) {
+func civoInstanceFromID(clusterID, instanceID string, c civogo.Clienter) (civogo.Instance, error) {
 	instance, err := c.FindKubernetesClusterInstance(clusterID, instanceID)
 	if err != nil {
 		klog.Errorf("Unable to find instance by id: %s, error: %v", instanceID, err)
@@ -31,7 +31,7 @@ func civoInstanceFromID(clusterID, instanceID string, c *civogo.Client) (civogo.
 	return *instance, nil
 }
 
-func CivoInstanceFromProviderID(providerID, clusterID string, c *civogo.Client) (civogo.Instance, error) {
+func CivoInstanceFromProviderID(providerID, clusterID string, c civogo.Clienter) (civogo.Instance, error) {
 	civoInstanceID, err := civoInstanceIDFromProviderID(providerID)
 	if err != nil {
 		return civogo.Instance{}, err
@@ -45,7 +45,7 @@ func CivoInstanceFromProviderID(providerID, clusterID string, c *civogo.Client) 
 	return civoInstance, nil
 }
 
-func CivoInstanceFromName(clusterID, instanceName string, c *civogo.Client) (civogo.Instance, error) {
+func CivoInstanceFromName(clusterID, instanceName string, c civogo.Clienter) (civogo.Instance, error) {
 	instance, err := c.FindKubernetesClusterInstance(clusterID, instanceName)
 	if err != nil {
 		klog.Errorf("Unable to find instance by name: %s, error: %v", instanceName, err)
