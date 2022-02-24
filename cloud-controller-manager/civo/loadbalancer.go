@@ -280,6 +280,7 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 	lbc := civogo.LoadBalancerConfig{
 		Name:                  getLoadBalancerName(cluster.Name, service),
 		ClusterID:             ClusterID,
+		NetworkID:             cluster.NetworkID,
 		ExternalTrafficPolicy: string(service.Spec.ExternalTrafficPolicy),
 		Region:                Region,
 	}
