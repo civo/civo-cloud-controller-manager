@@ -1,14 +1,14 @@
 # e2e Tests
 
-e2e tests for the Civo Cloud Contorller Manager.
+e2e tests for the Civo Cloud Controller Manager.
 
 These tests can be run:
 
 ```bash
-cd e2e
-API_KEY=.... go test --timeout 30 -v .
-
+CIVO_API_KEY=.... go test --timeout 30 -v ./e2e/...
 ```
+
+or the CIVO_API_KEY can be set in the `.env` file in the root of the project
 
 ## PreRequisites
 

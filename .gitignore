@@ -1,2 +1,3 @@
 kubeconfig
 .env
+./e2e/kubeconfig
