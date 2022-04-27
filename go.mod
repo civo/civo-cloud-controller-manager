@@ -12,6 +12,7 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/joho/godotenv v1.4.0
 	github.com/onsi/gomega v1.18.0
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect

@@ -85,6 +85,9 @@ github.com/hashicorp/golang-lru/simplelru
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
+# github.com/joho/godotenv v1.4.0
+## explicit
+github.com/joho/godotenv
 # github.com/json-iterator/go v1.1.11
 github.com/json-iterator/go
 # github.com/mailru/easyjson v0.7.0
