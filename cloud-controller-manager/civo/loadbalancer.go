@@ -111,13 +111,7 @@ func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName strin
 			return nil, err
 		}
 
-		return &v1.LoadBalancerStatus{
-			Ingress: []v1.LoadBalancerIngress{
-				{
-					IP: updatedlb.PublicIP,
-				},
-			},
-		}, nil
+		return lbStatusFor(updatedlb), nil
 	}
 
 	err = createLoadBalancer(ctx, clusterName, service, nodes, l.client.civoClient, l.client.kclient)
@@ -136,13 +130,20 @@ func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		return nil, fmt.Errorf("loadbalancer is not yet available, current state: %s", civolb.State)
 	}
 
-	return &v1.LoadBalancerStatus{
-		Ingress: []v1.LoadBalancerIngress{
-			{
-				IP: civolb.PublicIP,
-			},
-		},
-	}, nil
+	return lbStatusFor(civolb), nil
+}
+
+func lbStatusFor(civolb *civogo.LoadBalancer) *v1.LoadBalancerStatus {
+	status := &v1.LoadBalancerStatus{
+		Ingress: make([]v1.LoadBalancerIngress, 1),
+	}
+
+	if civolb.EnableProxyProtocol == "" {
+		status.Ingress[0].IP = civolb.PublicIP
+	}
+	status.Ingress[0].Hostname = fmt.Sprintf("%s.lb.civo.com", civolb.ID)
+
+	return status
 }
 
 // UpdateLoadBalancer updates hosts under the specified load balancer.
