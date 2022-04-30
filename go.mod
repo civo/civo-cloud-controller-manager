@@ -12,6 +12,7 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/joho/godotenv v1.4.0
 	github.com/onsi/gomega v1.18.0
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
@@ -25,6 +26,7 @@ require (
 	k8s.io/component-base v0.21.1
 	k8s.io/klog/v2 v2.9.0
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b // indirect
+	sigs.k8s.io/controller-runtime v0.0.0-00010101000000-000000000000
 )
 
 replace (

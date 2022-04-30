@@ -411,6 +411,7 @@ func TestEnsureLoadBalancer(t *testing.T) {
 		nodes   []*corev1.Node
 		store   []civogo.LoadBalancer
 		cluster []civogo.KubernetesCluster
+		setIP   bool
 		err     error
 	}{
 		{
@@ -473,7 +474,72 @@ func TestEnsureLoadBalancer(t *testing.T) {
 					},
 				},
 			},
-			err: nil,
+			setIP: true,
+			err:   nil,
+		},
+		{
+			name: "should not set ip for proxy protocol",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: corev1.NamespaceDefault,
+					Annotations: map[string]string{
+						annotationCivoClusterID:                       "a32fe5eb-1922-43e8-81bc-7f83b4011334",
+						annotationCivoLoadBalancerEnableProxyProtocol: "send-proxy",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{
+						{
+							Name:     "http",
+							Protocol: corev1.ProtocolTCP,
+							Port:     80,
+							NodePort: 30000,
+						},
+					},
+				},
+			},
+			nodes: []*corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+					},
+					Status: corev1.NodeStatus{
+						Addresses: []corev1.NodeAddress{
+							{
+								Address: "192.168.1.1",
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+					},
+					Status: corev1.NodeStatus{
+						Addresses: []corev1.NodeAddress{
+							{
+								Address: "192.168.1.2",
+							},
+						},
+					},
+				},
+			},
+			cluster: []civogo.KubernetesCluster{
+				{
+					ID:   "a32fe5eb-1922-43e8-81bc-7f83b4011334",
+					Name: "test",
+					Instances: []civogo.KubernetesInstance{
+						{
+							ID:       "11bd4686-5dbf-4e35-b703-75f2864bd6b9",
+							Hostname: "node1",
+						},
+					},
+				},
+			},
+			setIP: false,
+			err:   nil,
 		},
 		{
 			name: "should update an existing load balancer",
@@ -549,7 +615,8 @@ func TestEnsureLoadBalancer(t *testing.T) {
 					},
 				},
 			},
-			err: nil,
+			setIP: true,
+			err:   nil,
 		},
 	}
 
@@ -576,7 +643,13 @@ func TestEnsureLoadBalancer(t *testing.T) {
 			lbStatus, err := lb.EnsureLoadBalancer(context.Background(), test.cluster[0].Name, test.service, test.nodes)
 			g.Expect(err).To(BeNil())
 
-			g.Expect(lbStatus.Ingress[0].IP).NotTo(BeEmpty())
+			if test.setIP {
+				g.Expect(lbStatus.Ingress[0].IP).NotTo(BeEmpty())
+			} else {
+				g.Expect(lbStatus.Ingress[0].IP).To(BeEmpty())
+			}
+
+			g.Expect(lbStatus.Ingress[0].Hostname).NotTo(BeEmpty())
 
 			svc, err := lb.client.kclient.CoreV1().Services(test.service.Namespace).Get(context.Background(), test.service.Name, metav1.GetOptions{})
 			if err != nil {
