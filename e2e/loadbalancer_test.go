@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func TestLoadbalacnerBasic(t *testing.T) {
+func TestLoadbalancerBasic(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
@@ -22,7 +22,7 @@ func TestLoadbalacnerBasic(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	lbls := map[string]string{"app": "mirror-pod"}
-	// Create a service of type: LoadBalacner
+	// Create a service of type: LoadBalancer
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "echo-pods",
@@ -59,14 +59,14 @@ func TestLoadbalacnerBasic(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeNil())
 }
 
-func TestLoadbalacnerProxy(t *testing.T) {
+func TestLoadbalancerProxy(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	_, err := deployMirrorPods(e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	lbls := map[string]string{"app": "mirror-pod"}
-	// Create a service of type: LoadBalacner
+	// Create a service of type: LoadBalancer
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "echo-pods",
@@ -94,8 +94,8 @@ func TestLoadbalacnerProxy(t *testing.T) {
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
-		return svc.Status.LoadBalancer.Ingress[0].IP
-	}, "2m", "5s").ShouldNot(BeEmpty())
+		return svc.Status.LoadBalancer.Ingress[0].Hostname
+	}, "5m", "5s").ShouldNot(BeEmpty())
 
 	/*
 		// Cleanup

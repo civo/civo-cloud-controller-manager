@@ -31,6 +31,7 @@ func civoInstanceFromID(clusterID, instanceID string, c civogo.Clienter) (civogo
 	return *instance, nil
 }
 
+// CivoInstanceFromProviderID finds civo instance by clusterID and providerID
 func CivoInstanceFromProviderID(providerID, clusterID string, c civogo.Clienter) (civogo.Instance, error) {
 	civoInstanceID, err := civoInstanceIDFromProviderID(providerID)
 	if err != nil {
@@ -45,6 +46,7 @@ func CivoInstanceFromProviderID(providerID, clusterID string, c civogo.Clienter)
 	return civoInstance, nil
 }
 
+// CivoInstanceFromName finds civo instance by clusterID and name
 func CivoInstanceFromName(clusterID, instanceName string, c civogo.Clienter) (civogo.Instance, error) {
 	instance, err := c.FindKubernetesClusterInstance(clusterID, instanceName)
 	if err != nil {

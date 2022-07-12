@@ -9,14 +9,20 @@ import (
 )
 
 const (
+	// ProviderName is the name of the provider.
 	ProviderName string = "civo"
 )
 
 var (
-	ApiURL    string
-	ApiKey    string
-	Region    string
+	// APIURL is the URL of the Civo API.
+	APIURL string
+	// APIKey is the API key for the Civo API.
+	APIKey string
+	// Region is the region of the Civo API.
+	Region string
+	// Namespace of the cluster
 	Namespace string
+	// ClusterID is the ID of the Civo cluster.
 	ClusterID string
 )
 
@@ -33,7 +39,7 @@ func init() {
 }
 
 func newCloud() (cloudprovider.Interface, error) {
-	client, err := civogo.NewClientWithURL(ApiKey, ApiURL, Region)
+	client, err := civogo.NewClientWithURL(APIKey, APIURL, Region)
 	if err != nil {
 		return nil, err
 	}
