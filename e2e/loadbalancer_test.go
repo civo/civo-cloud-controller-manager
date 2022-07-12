@@ -16,99 +16,98 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// func TestLoadbalancerBasic(t *testing.T) {
+func TestLoadbalancerBasic(t *testing.T) {
 
-// 	g := NewGomegaWithT(t)
+	g := NewGomegaWithT(t)
 
-// 	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
-// 	g.Expect(err).ShouldNot(HaveOccurred())
+	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
+	g.Expect(err).ShouldNot(HaveOccurred())
 
-// 	lbls := map[string]string{"app": "mirror-pod"}
-// 	// Create a service of type: LoadBalancer
-// 	svc := &corev1.Service{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      "echo-pods",
-// 			Namespace: "default",
-// 		},
-// 		Spec: corev1.ServiceSpec{
-// 			Ports: []corev1.ServicePort{
-// 				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8080)},
-// 				{Name: "https", Protocol: "TCP", Port: 443, TargetPort: intstr.FromInt(8443)},
-// 			},
-// 			Selector: lbls,
-// 			Type:     "LoadBalancer",
-// 		},
-// 	}
+	lbls := map[string]string{"app": "mirror-pod"}
+	// Create a service of type: LoadBalancer
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "echo-pods",
+			Namespace: "default",
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8080)},
+				{Name: "https", Protocol: "TCP", Port: 443, TargetPort: intstr.FromInt(8443)},
+			},
+			Selector: lbls,
+			Type:     "LoadBalancer",
+		},
+	}
 
-// 	fmt.Println("Creating Service")
-// 	err = e2eTest.tenantClient.Create(context.TODO(), svc)
-// 	g.Expect(err).ShouldNot(HaveOccurred())
+	fmt.Println("Creating Service")
+	err = e2eTest.tenantClient.Create(context.TODO(), svc)
+	g.Expect(err).ShouldNot(HaveOccurred())
 
-// 	g.Eventually(func() string {
-// 		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-// 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-// 			return ""
-// 		}
-// 		return svc.Status.LoadBalancer.Ingress[0].IP
-// 	}, "2m", "5s").ShouldNot(BeEmpty())
+	g.Eventually(func() string {
+		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		if len(svc.Status.LoadBalancer.Ingress) == 0 {
+			return ""
+		}
+		return svc.Status.LoadBalancer.Ingress[0].IP
+	}, "2m", "5s").ShouldNot(BeEmpty())
 
-// 	// Cleanup
-// 	err = cleanUp(mirrorDeploy, svc)
-// 	g.Expect(err).ShouldNot(HaveOccurred())
+	// Cleanup
+	err = cleanUp(mirrorDeploy, svc)
+	g.Expect(err).ShouldNot(HaveOccurred())
 
-// 	g.Eventually(func() error {
-// 		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-// 	}, "2m", "5s").ShouldNot(BeNil())
-// }
+	g.Eventually(func() error {
+		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+	}, "2m", "5s").ShouldNot(BeNil())
+}
 
-// func TestLoadbalancerProxy(t *testing.T) {
-// 	g := NewGomegaWithT(t)
+func TestLoadbalancerProxy(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-// 	_, err := deployMirrorPods(e2eTest.tenantClient)
-// 	g.Expect(err).ShouldNot(HaveOccurred())
+	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
+	g.Expect(err).ShouldNot(HaveOccurred())
 
-// 	lbls := map[string]string{"app": "mirror-pod"}
-// 	// Create a service of type: LoadBalancer
-// 	svc := &corev1.Service{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      "echo-pods",
-// 			Namespace: "default",
-// 			Annotations: map[string]string{
-// 				"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
-// 			},
-// 		},
-// 		Spec: corev1.ServiceSpec{
-// 			Ports: []corev1.ServicePort{
-// 				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8081)},
-// 				{Name: "https", Protocol: "TCP", Port: 443, TargetPort: intstr.FromInt(8444)},
-// 			},
-// 			Selector: lbls,
-// 			Type:     "LoadBalancer",
-// 		},
-// 	}
+	lbls := map[string]string{"app": "mirror-pod"}
+	// Create a service of type: LoadBalancer
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "echo-pods",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8081)},
+				{Name: "https", Protocol: "TCP", Port: 443, TargetPort: intstr.FromInt(8444)},
+			},
+			Selector: lbls,
+			Type:     "LoadBalancer",
+		},
+	}
 
-// 	fmt.Println("Creating Service")
-// 	err = e2eTest.tenantClient.Create(context.TODO(), svc)
-// 	g.Expect(err).ShouldNot(HaveOccurred())
+	fmt.Println("Creating Service")
+	err = e2eTest.tenantClient.Create(context.TODO(), svc)
+	g.Expect(err).ShouldNot(HaveOccurred())
 
-// 	g.Eventually(func() string {
-// 		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-// 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-// 			return ""
-// 		}
-// 		return svc.Status.LoadBalancer.Ingress[0].Hostname
-// 	}, "5m", "5s").ShouldNot(BeEmpty())
+	g.Eventually(func() string {
+		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		if len(svc.Status.LoadBalancer.Ingress) == 0 {
+			return ""
+		}
+		return svc.Status.LoadBalancer.Ingress[0].Hostname
+	}, "5m", "5s").ShouldNot(BeEmpty())
 
-// 	/*
-// 		// Cleanup
-// 		err = cleanUp(mirrorDeploy, svc)
-// 		g.Expect(err).ShouldNot(HaveOccurred())
+	// Cleanup
+	err = cleanUp(mirrorDeploy, svc)
+	g.Expect(err).ShouldNot(HaveOccurred())
 
-// 		g.Eventually(func() error {
-// 			return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-// 		}, "2m", "5s").ShouldNot(BeNil())
-// 	*/
-// }
+	g.Eventually(func() error {
+		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+	}, "2m", "5s").ShouldNot(BeNil())
+
+}
 
 func TestLoadbalancerPublicIP(t *testing.T) {
 	g := NewGomegaWithT(t)
