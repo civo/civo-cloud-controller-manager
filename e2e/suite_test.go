@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const CivoRegion = "LON1"
+var CivoRegion, CivoURL string
 
 var e2eTest *E2ETest
 
@@ -136,14 +136,28 @@ func (e *E2ETest) provisionCluster() {
 	if APIKey == "" {
 		log.Panic("CIVO_API_KEY env variable not provided")
 	}
+
+	CivoRegion = os.Getenv("CIVO_REGION")
+	if CivoRegion == "" {
+		CivoRegion = "LON1"
+	}
+
+	CivoURL := os.Getenv("CIVO_URL")
+	if CivoURL == "" {
+		CivoURL = "https://api.civo.com"
+	}
+
 	var err error
-	e.civo, err = civogo.NewClient(APIKey, CivoRegion)
+	e.civo, err = civogo.NewClientWithURL(APIKey, CivoURL, CivoRegion)
 	if err != nil {
 		log.Panicf("Unable to initialise Civo Client: %s", err.Error())
 	}
 
 	// List Clusters
-	list, _ := e.civo.ListKubernetesClusters()
+	list, err := e.civo.ListKubernetesClusters()
+	if err != nil {
+		log.Panicf("Unable to list Clusters: %s", err.Error())
+	}
 	for _, cluster := range list.Items {
 		if cluster.Name == "ccm-e2e-test" {
 			e.cluster = &cluster
