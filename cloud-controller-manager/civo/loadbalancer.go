@@ -91,7 +91,7 @@ func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		return nil, err
 	}
 
-	// CivLB has been found
+	// CivoLB has been found
 	if err == nil {
 		ul, err := l.updateLBConfig(civolb, service, nodes)
 		if err != nil {
@@ -146,7 +146,7 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 	}
 	lbuc.Backends = backends
 
-	if ip := getReservedIP(service); ip != "" {
+	if ip := getReservedIPFromAnnotation(service); ip != "" {
 		rip, err := l.client.civoClient.FindIP(ip)
 		if err != nil {
 			klog.Errorf("Unable to find reserved IP, error: %v", err)
@@ -162,12 +162,12 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 			}
 		}
 	} else {
-		ips, err := l.client.civoClient.ListIPs()
+		ip, err := findIPWithLBID(l.client.civoClient, civolb.ID)
 		if err != nil {
-			klog.Errorf("Unable to list IPs, error: %v", err)
+			klog.Errorf("Unable to find IP with loadbalancer ID, error: %v", err)
 			return nil, err
 		}
-		ip := findIPWithLBID(ips.Items, civolb.ID)
+
 		if ip != nil {
 			_, err = l.client.civoClient.UnassignIP(ip.ID)
 			if err != nil {
@@ -187,13 +187,21 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 
 }
 
-func findIPWithLBID(ips []civogo.IP, lbID string) *civogo.IP {
-	for _, ip := range ips {
+// there's no direct way to find if the LB is using a reserved IP. This method lists all the reserved IPs in the account
+// and checks if the loadbalancer is using one of them.
+func findIPWithLBID(civo civogo.Clienter, lbID string) (*civogo.IP, error) {
+	ips, err := civo.ListIPs()
+	if err != nil {
+		klog.Errorf("Unable to list IPs, error: %v", err)
+		return nil, err
+	}
+
+	for _, ip := range ips.Items {
 		if ip.AssignedTo.ID == lbID {
-			return &ip
+			return &ip, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func lbStatusFor(civolb *civogo.LoadBalancer) (*v1.LoadBalancerStatus, error) {
@@ -389,30 +397,19 @@ func getEnableProxyProtocol(service *v1.Service) string {
 
 // getAlgorithm returns the algorithm value from the service annotation.
 func getAlgorithm(service *v1.Service) string {
-	algorithm, ok := service.Annotations[annotationCivoLoadBalancerAlgorithm]
-	if !ok {
-		return ""
-	}
+	algorithm, _ := service.Annotations[annotationCivoLoadBalancerAlgorithm]
 
 	return algorithm
 }
 
-// getReservedIP returns the reservedIP value from the service annotation.
-func getReservedIP(service *v1.Service) string {
-	ip, ok := service.Annotations[annotationCivoIPv4]
-	if !ok {
-		return ""
-	}
-
+// getReservedIPFromAnnotation returns the reservedIP value from the service annotation.
+func getReservedIPFromAnnotation(service *v1.Service) string {
+	ip, _ := service.Annotations[annotationCivoIPv4]
 	return ip
 }
 
 // getFirewallID returns the firewallID value from the service annotation.
 func getFirewallID(service *v1.Service) string {
-	firewallID, ok := service.Annotations[annotationCivoFirewallID]
-	if !ok {
-		return ""
-	}
-
+	firewallID, _ := service.Annotations[annotationCivoFirewallID]
 	return firewallID
 }

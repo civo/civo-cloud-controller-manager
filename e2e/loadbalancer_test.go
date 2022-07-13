@@ -109,12 +109,13 @@ func TestLoadbalancerProxy(t *testing.T) {
 
 }
 
-func TestLoadbalancerPublicIP(t *testing.T) {
+func TestLoadbalancerReservedIP(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	_, err := deployMirrorPods(e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
+	fmt.Println("Create a reserved IP for e2e test (if it doesn't exist)")
 	ip, err := getOrCreateIP(e2eTest.civo)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
@@ -124,7 +125,21 @@ func TestLoadbalancerPublicIP(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeEmpty())
 
 	fmt.Println("Creating Service")
-	svc, err := getOrCreateSvc(e2eTest.tenantClient, ip)
+	svc, err := getOrCreateSvc(e2eTest.tenantClient)
+	g.Expect(err).ShouldNot(HaveOccurred())
+
+	patchSvc := &corev1.Service{}
+	err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), patchSvc)
+	originalSvc := svc.DeepCopy()
+	if patchSvc.Annotations == nil {
+		patchSvc.Annotations = make(map[string]string, 0)
+	}
+	patchSvc.Annotations = map[string]string{
+		"kubernetes.civo.com/ipv4-address": ip.IP,
+	}
+
+	fmt.Println("Updating service with reserved IP annotation")
+	err = e2eTest.tenantClient.Patch(context.TODO(), patchSvc, client.MergeFrom(originalSvc))
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	g.Eventually(func() string {
@@ -141,6 +156,7 @@ func TestLoadbalancerPublicIP(t *testing.T) {
 	err = e2eTest.tenantClient.Update(context.TODO(), svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
+	fmt.Println("Waiting for auto-assigned IP to be attached to LB")
 	g.Eventually(func() string {
 		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
@@ -184,20 +200,17 @@ func getOrCreateIP(c *civogo.Client) (*civogo.IP, error) {
 	return ip, err
 }
 
-func getOrCreateSvc(c client.Client, ip *civogo.IP) (*corev1.Service, error) {
+func getOrCreateSvc(c client.Client) (*corev1.Service, error) {
 	svc := &corev1.Service{}
 	err := c.Get(context.TODO(), client.ObjectKey{Name: "echo-pods", Namespace: "default"}, svc)
 	if err != nil && errors.IsNotFound(err) {
 		lbls := map[string]string{"app": "mirror-pod"}
 		// Create a service of type: LoadBalancer
-		fmt.Println("Creating Service with IP: ", ip.IP)
 		svc = &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "echo-pods",
-				Namespace: "default",
-				Annotations: map[string]string{
-					"kubernetes.civo.com/ipv4-address": ip.IP,
-				},
+				Name:        "echo-pods",
+				Namespace:   "default",
+				Annotations: map[string]string{},
 			},
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{
