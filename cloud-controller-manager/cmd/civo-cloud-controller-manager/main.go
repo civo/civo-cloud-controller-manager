@@ -18,17 +18,17 @@ import (
 
 func main() {
 
-	civo.ApiURL = os.Getenv("CIVO_API_URL")
-	civo.ApiKey = os.Getenv("CIVO_API_KEY")
+	civo.APIURL = os.Getenv("CIVO_API_URL")
+	civo.APIKey = os.Getenv("CIVO_API_KEY")
 	civo.Region = os.Getenv("CIVO_REGION")
 	civo.ClusterID = os.Getenv("CIVO_CLUSTER_ID")
 
-	if civo.ApiURL == "" || civo.ApiKey == "" || civo.Region == "" || civo.ClusterID == "" {
+	if civo.APIURL == "" || civo.APIKey == "" || civo.Region == "" || civo.ClusterID == "" {
 		fmt.Println("CIVO_API_URL, CIVO_API_KEY, CIVO_REGION, CIVO_CLUSTER_ID environment variables must be set")
 		os.Exit(1)
 	}
 
-	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s, CIVO_CLUSTER_ID: %s", civo.ApiURL, civo.Region, civo.ClusterID)
+	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s, CIVO_CLUSTER_ID: %s", civo.APIURL, civo.Region, civo.ClusterID)
 
 	opts, err := options.NewCloudControllerManagerOptions()
 	if err != nil {

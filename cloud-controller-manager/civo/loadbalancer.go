@@ -34,6 +34,9 @@ const (
 
 	// annotationCivoLoadBalancerAlgorithm is the annotation specifying the CivoLoadbalancer algorith.
 	annotationCivoLoadBalancerAlgorithm = "kubernetes.civo.com/loadbalancer-algorithm"
+
+	// annotationCivoIPv4 is the annotation specifying the reserved IP.
+	annotationCivoIPv4 = "kubernetes.civo.com/ipv4-address"
 )
 
 type loadbalancer struct {
@@ -88,30 +91,15 @@ func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		return nil, err
 	}
 
-	// CivLB has been found
+	// CivoLB has been found
 	if err == nil {
-		lbuc := civogo.LoadBalancerUpdateConfig{
-			ExternalTrafficPolicy: string(service.Spec.ExternalTrafficPolicy),
-			Region:                Region,
-		}
-
-		if enableProxyProtocol := getEnableProxyProtocol(service); enableProxyProtocol != "" {
-			lbuc.EnableProxyProtocol = enableProxyProtocol
-		}
-		if algorithm := getAlgorithm(service); algorithm != "" {
-			lbuc.Algorithm = algorithm
-		}
-		if firewallID := getFirewallID(service); firewallID != "" {
-			lbuc.FirewallID = firewallID
-		}
-
-		updatedlb, err := l.client.civoClient.UpdateLoadBalancer(civolb.ID, &lbuc)
+		ul, err := l.updateLBConfig(civolb, service, nodes)
 		if err != nil {
 			klog.Errorf("Unable to update loadbalancer, error: %v", err)
 			return nil, err
 		}
 
-		return lbStatusFor(updatedlb), nil
+		return lbStatusFor(ul)
 	}
 
 	err = createLoadBalancer(ctx, clusterName, service, nodes, l.client.civoClient, l.client.kclient)
@@ -125,41 +113,10 @@ func (l *loadbalancer) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		return nil, err
 	}
 
-	if civolb.State != statusAvailable {
-		klog.Errorf("Loadbalancer is not available, state: %s", civolb.State)
-		return nil, fmt.Errorf("loadbalancer is not yet available, current state: %s", civolb.State)
-	}
-
-	return lbStatusFor(civolb), nil
+	return lbStatusFor(civolb)
 }
 
-func lbStatusFor(civolb *civogo.LoadBalancer) *v1.LoadBalancerStatus {
-	status := &v1.LoadBalancerStatus{
-		Ingress: make([]v1.LoadBalancerIngress, 1),
-	}
-
-	if civolb.EnableProxyProtocol == "" {
-		status.Ingress[0].IP = civolb.PublicIP
-	}
-	status.Ingress[0].Hostname = fmt.Sprintf("%s.lb.civo.com", civolb.ID)
-
-	return status
-}
-
-// UpdateLoadBalancer updates hosts under the specified load balancer.
-// Implementations must treat the *v1.Service and *v1.Node
-// parameters as read-only and not modify them.
-// Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
-func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
-	civolb, err := getLoadBalancer(ctx, l.client.civoClient, l.client.kclient, clusterName, service)
-	if err != nil {
-		if strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) || strings.Contains(err.Error(), string(civogo.DatabaseLoadBalancerNotFoundError)) {
-			return nil
-		}
-		klog.Errorf("Unable to get loadbalancer, error: %v", err)
-		return err
-	}
-
+func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.Service, nodes []*v1.Node) (*civogo.LoadBalancer, error) {
 	lbuc := civogo.LoadBalancerUpdateConfig{
 		ExternalTrafficPolicy: string(service.Spec.ExternalTrafficPolicy),
 		Region:                Region,
@@ -189,7 +146,97 @@ func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	}
 	lbuc.Backends = backends
 
-	ulb, err := l.client.civoClient.UpdateLoadBalancer(civolb.ID, &lbuc)
+	if ip := getReservedIPFromAnnotation(service); ip != "" {
+		rip, err := l.client.civoClient.FindIP(ip)
+		if err != nil {
+			klog.Errorf("Unable to find reserved IP, error: %v", err)
+			return nil, err
+		}
+
+		// this is so that we don't try to reassign the reserved IP to the loadbalancer
+		if rip.AssignedTo.ID != civolb.ID {
+			_, err = l.client.civoClient.AssignIP(rip.ID, civolb.ID, "loadbalancer")
+			if err != nil {
+				klog.Errorf("Unable to assign reserved IP, error: %v", err)
+				return nil, err
+			}
+		}
+	} else {
+		ip, err := findIPWithLBID(l.client.civoClient, civolb.ID)
+		if err != nil {
+			klog.Errorf("Unable to find IP with loadbalancer ID, error: %v", err)
+			return nil, err
+		}
+
+		if ip != nil {
+			_, err = l.client.civoClient.UnassignIP(ip.ID)
+			if err != nil {
+				klog.Errorf("Unable to unassign IP, error: %v", err)
+				return nil, err
+			}
+		}
+	}
+
+	updatedlb, err := l.client.civoClient.UpdateLoadBalancer(civolb.ID, &lbuc)
+	if err != nil {
+		klog.Errorf("Unable to update loadbalancer, error: %v", err)
+		return nil, err
+	}
+
+	return updatedlb, nil
+
+}
+
+// there's no direct way to find if the LB is using a reserved IP. This method lists all the reserved IPs in the account
+// and checks if the loadbalancer is using one of them.
+func findIPWithLBID(civo civogo.Clienter, lbID string) (*civogo.IP, error) {
+	ips, err := civo.ListIPs()
+	if err != nil {
+		klog.Errorf("Unable to list IPs, error: %v", err)
+		return nil, err
+	}
+
+	for _, ip := range ips.Items {
+		if ip.AssignedTo.ID == lbID {
+			return &ip, nil
+		}
+	}
+	return nil, nil
+}
+
+func lbStatusFor(civolb *civogo.LoadBalancer) (*v1.LoadBalancerStatus, error) {
+	status := &v1.LoadBalancerStatus{
+		Ingress: make([]v1.LoadBalancerIngress, 1),
+	}
+
+	if civolb.State != statusAvailable {
+		klog.Errorf("Loadbalancer is not available, state: %s", civolb.State)
+		return nil, fmt.Errorf("loadbalancer is not yet available, current state: %s", civolb.State)
+	}
+
+	if civolb.EnableProxyProtocol == "" {
+		status.Ingress[0].IP = civolb.PublicIP
+	}
+	status.Ingress[0].Hostname = fmt.Sprintf("%s.lb.civo.com", civolb.ID)
+
+	return status, nil
+}
+
+// UpdateLoadBalancer updates hosts under the specified load balancer.
+// Implementations must treat the *v1.Service and *v1.Node
+// parameters as read-only and not modify them.
+// Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
+func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
+	civolb, err := getLoadBalancer(ctx, l.client.civoClient, l.client.kclient, clusterName, service)
+	if err != nil {
+		if strings.Contains(err.Error(), string(civogo.ZeroMatchesError)) || strings.Contains(err.Error(), string(civogo.DatabaseLoadBalancerNotFoundError)) {
+			return nil
+		}
+		klog.Errorf("Unable to get loadbalancer, error: %v", err)
+		return err
+	}
+
+	ulb, err := l.updateLBConfig(civolb, service, nodes)
 	if err != nil {
 		klog.Errorf("Unable to update loadbalancer, error: %v", err)
 		return err
@@ -350,20 +397,19 @@ func getEnableProxyProtocol(service *v1.Service) string {
 
 // getAlgorithm returns the algorithm value from the service annotation.
 func getAlgorithm(service *v1.Service) string {
-	algorithm, ok := service.Annotations[annotationCivoLoadBalancerAlgorithm]
-	if !ok {
-		return ""
-	}
+	algorithm, _ := service.Annotations[annotationCivoLoadBalancerAlgorithm]
 
 	return algorithm
 }
 
+// getReservedIPFromAnnotation returns the reservedIP value from the service annotation.
+func getReservedIPFromAnnotation(service *v1.Service) string {
+	ip, _ := service.Annotations[annotationCivoIPv4]
+	return ip
+}
+
 // getFirewallID returns the firewallID value from the service annotation.
 func getFirewallID(service *v1.Service) string {
-	firewallID, ok := service.Annotations[annotationCivoFirewallID]
-	if !ok {
-		return ""
-	}
-
+	firewallID, _ := service.Annotations[annotationCivoFirewallID]
 	return firewallID
 }

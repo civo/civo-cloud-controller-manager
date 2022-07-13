@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const CivoRegion = "LON1"
+var CivoRegion, CivoURL string
 
 var e2eTest *E2ETest
 
@@ -132,18 +132,32 @@ func TestMain(m *testing.M) {
 }
 
 func (e *E2ETest) provisionCluster() {
-	api_key := os.Getenv("CIVO_API_KEY")
-	if api_key == "" {
+	APIKey := os.Getenv("CIVO_API_KEY")
+	if APIKey == "" {
 		log.Panic("CIVO_API_KEY env variable not provided")
 	}
+
+	CivoRegion = os.Getenv("CIVO_REGION")
+	if CivoRegion == "" {
+		CivoRegion = "LON1"
+	}
+
+	CivoURL := os.Getenv("CIVO_URL")
+	if CivoURL == "" {
+		CivoURL = "https://api.civo.com"
+	}
+
 	var err error
-	e.civo, err = civogo.NewClient(api_key, CivoRegion)
+	e.civo, err = civogo.NewClientWithURL(APIKey, CivoURL, CivoRegion)
 	if err != nil {
 		log.Panicf("Unable to initialise Civo Client: %s", err.Error())
 	}
 
 	// List Clusters
-	list, _ := e.civo.ListKubernetesClusters()
+	list, err := e.civo.ListKubernetesClusters()
+	if err != nil {
+		log.Panicf("Unable to list Clusters: %s", err.Error())
+	}
 	for _, cluster := range list.Items {
 		if cluster.Name == "ccm-e2e-test" {
 			e.cluster = &cluster
@@ -205,17 +219,17 @@ func run(secret *corev1.Secret, kubeconfig string) {
 	}
 
 	// Read env var from in cluster secret
-	civo.ApiURL = string(secret.Data["api-url"])
-	civo.ApiKey = string(secret.Data["api-key"])
+	civo.APIURL = string(secret.Data["api-url"])
+	civo.APIKey = string(secret.Data["api-key"])
 	civo.Region = string(secret.Data["region"])
 	civo.ClusterID = string(secret.Data["cluster-id"])
 
-	if civo.ApiURL == "" || civo.ApiKey == "" || civo.Region == "" || civo.ClusterID == "" {
+	if civo.APIURL == "" || civo.APIKey == "" || civo.Region == "" || civo.ClusterID == "" {
 		fmt.Println("CIVO_API_URL, CIVO_API_KEY, CIVO_REGION, CIVO_CLUSTER_ID environment variables must be set")
 		os.Exit(1)
 	}
 
-	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s, CIVO_CLUSTER_ID: %s", civo.ApiURL, civo.Region, civo.ClusterID)
+	klog.Infof("Starting ccm with CIVO_API_URL: %s, CIVO_REGION: %s, CIVO_CLUSTER_ID: %s", civo.APIURL, civo.Region, civo.ClusterID)
 
 	opts, err := options.NewCloudControllerManagerOptions()
 	if err != nil {
