@@ -155,7 +155,7 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 
 		// this is so that we don't try to reassign the reserved IP to the loadbalancer
 		if rip.AssignedTo.ID != civolb.ID {
-			_, err = l.client.civoClient.AssignIP(rip.ID, civolb.ID, "loadbalancer")
+			_, err = l.client.civoClient.AssignIP(rip.ID, civolb.ID, "loadbalancer", Region)
 			if err != nil {
 				klog.Errorf("Unable to assign reserved IP, error: %v", err)
 				return nil, err
@@ -169,7 +169,7 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 		}
 
 		if ip != nil {
-			_, err = l.client.civoClient.UnassignIP(ip.ID)
+			_, err = l.client.civoClient.UnassignIP(ip.ID, Region)
 			if err != nil {
 				klog.Errorf("Unable to unassign IP, error: %v", err)
 				return nil, err
