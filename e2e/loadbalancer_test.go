@@ -248,9 +248,6 @@ func deployMirrorPods(c client.Client) (*appsv1.Deployment, error) {
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: lbls,
-						Annotations: map[string]string{
-							"danm.k8s.io/interfaces": "[{\"tenantNetwork\":\"tenant-vxlan\", \"ip\":\"dynamic\"}]",
-						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
