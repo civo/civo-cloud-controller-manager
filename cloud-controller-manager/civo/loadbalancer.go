@@ -37,6 +37,9 @@ const (
 
 	// annotationCivoIPv4 is the annotation specifying the reserved IP.
 	annotationCivoIPv4 = "kubernetes.civo.com/ipv4-address"
+
+	// annDOProtocol is the annotation used to specify the protocol for the load balancer
+	annotationCivoProtocol = "kubernetes.civo.com/protocol"
 )
 
 type loadbalancer struct {
@@ -137,7 +140,7 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 		for _, node := range nodes {
 			backends = append(backends, civogo.LoadBalancerBackendConfig{
 				IP:              node.Status.Addresses[0].Address,
-				Protocol:        string(port.Protocol),
+				Protocol:        getProtocol(service, port),
 				SourcePort:      port.Port,
 				TargetPort:      port.NodePort,
 				HealthCheckPort: service.Spec.HealthCheckNodePort,
@@ -348,7 +351,7 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 		for _, node := range nodes {
 			backends = append(backends, civogo.LoadBalancerBackendConfig{
 				IP:              node.Status.Addresses[0].Address,
-				Protocol:        string(port.Protocol),
+				Protocol:        getProtocol(service, port),
 				SourcePort:      port.Port,
 				TargetPort:      port.NodePort,
 				HealthCheckPort: service.Spec.HealthCheckNodePort,
@@ -397,19 +400,22 @@ func getEnableProxyProtocol(service *v1.Service) string {
 
 // getAlgorithm returns the algorithm value from the service annotation.
 func getAlgorithm(service *v1.Service) string {
-	algorithm, _ := service.Annotations[annotationCivoLoadBalancerAlgorithm]
-
-	return algorithm
+	return service.Annotations[annotationCivoLoadBalancerAlgorithm]
 }
 
 // getReservedIPFromAnnotation returns the reservedIP value from the service annotation.
 func getReservedIPFromAnnotation(service *v1.Service) string {
-	ip, _ := service.Annotations[annotationCivoIPv4]
-	return ip
+	return service.Annotations[annotationCivoIPv4]
 }
 
 // getFirewallID returns the firewallID value from the service annotation.
 func getFirewallID(service *v1.Service) string {
-	firewallID, _ := service.Annotations[annotationCivoFirewallID]
-	return firewallID
+	return service.Annotations[annotationCivoFirewallID]
+}
+
+func getProtocol(svc *v1.Service, port v1.ServicePort) string {
+	if svc.Annotations[annotationCivoProtocol] != "" {
+		return strings.ToUpper(svc.Annotations[annotationCivoProtocol])
+	}
+	return string(port.Protocol)
 }

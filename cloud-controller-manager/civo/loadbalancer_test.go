@@ -7,6 +7,7 @@ import (
 	"github.com/civo/civogo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	cloudprovider "k8s.io/cloud-provider"
@@ -665,7 +666,7 @@ func TestEnsureLoadBalancer(t *testing.T) {
 	}
 }
 
-//TestUpdateLoadBalancer tests the update of a load balancer
+// TestUpdateLoadBalancer tests the update of a load balancer
 func TestUpdateLoadBalancer(t *testing.T) {
 	g := NewWithT(t)
 	tests := []struct {
@@ -794,7 +795,7 @@ func TestUpdateLoadBalancer(t *testing.T) {
 	}
 }
 
-//TestEnsureLoadBalancerDeleted tests the ensureLoadBalancerDeleted function
+// TestEnsureLoadBalancerDeleted tests the ensureLoadBalancerDeleted function
 func TestEnsureLoadBalancerDeleted(t *testing.T) {
 	g := NewGomegaWithT(t)
 	service := &corev1.Service{
@@ -855,4 +856,28 @@ func TestEnsureLoadBalancerDeleted(t *testing.T) {
 
 	err = lb.EnsureLoadBalancerDeleted(context.Background(), "test", service)
 	g.Expect(err).To(BeNil())
+}
+
+func TestGetProtocol(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	tests := map[string]struct {
+		Annotation string
+		Result     string
+	}{
+		"No Annotation Set":        {Annotation: "", Result: "TCP"},
+		"Annotation Set":           {Annotation: "HTTP", Result: "HTTP"},
+		"Lowercase Annotation Set": {Annotation: "http", Result: "HTTP"},
+	}
+	svc := &v1.Service{}
+	port := v1.ServicePort{Protocol: corev1.ProtocolTCP}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			svc.Annotations = map[string]string{annotationCivoProtocol: test.Annotation}
+			res := getProtocol(svc, port)
+			g.Expect(res).Should(Equal(test.Result))
+		})
+
+	}
 }
