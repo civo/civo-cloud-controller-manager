@@ -21,7 +21,8 @@ Read More: https://www.civo.com/learn/managing-external-load-balancers-on-civo
 | kubernetes.civo.com/firewall-id | If provided, an existing Firewall will be used. | 03093EF6-31E6-48B1-AB1D-152AC3A8C90A |
 | kubernetes.civo.com/loadbalancer-enable-proxy-protocol | If set, a proxy-protocol header will be sent via the load balancer. <br /><br />NB: This requires support from the Service End Points within the cluster. | send-proxy<br />send-proxy-v2 |
 | kubernetes.civo.com/loadbalancer-algorithm | Custom the algorithm the external load balancer uses | round_robin<br />least_connections |
-|kubernetes.civo.com/ipv4-address| If set, LoadBalancer will have the mentioned IP as the public IP. Please note: the reserved IP should be present in the account before claiming it. | 10.0.0.20<br/> my-reserved-ip |
+| kubernetes.civo.com/ipv4-address | If set, LoadBalancer will have the mentioned IP as the public IP. Please note: the reserved IP should be present in the account before claiming it. | 10.0.0.20<br/> my-reserved-ip |
+| kubernetes.civo.com/protocol | If set, this will override the protocol set on the svc with this | http<br />tcp |
 
 ### Load Balancer Status Annotations
 
