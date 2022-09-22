@@ -11,6 +11,9 @@ import (
 const (
 	// ProviderName is the name of the provider.
 	ProviderName string = "civo"
+
+	// CCMVersion is the version of the CCM.
+	CCMVersion string = "dev"
 )
 
 var (
@@ -43,6 +46,14 @@ func newCloud() (cloudprovider.Interface, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	userAgent := &civogo.Component{
+		Name:    "civo-cloud-controller-manager",
+		ID:      ClusterID,
+		Version: CCMVersion,
+	}
+
+	client.SetUserAgent(userAgent)
 
 	clients := newClients(client)
 
