@@ -40,6 +40,8 @@ jobs:
         with:
           file: Dockerfile
           push: true
+          build-args: |
+            VERSION=${{ steps.tag.outputs.tag }}
           tags: |
             civo/civo-cloud-controller-manager:${{ steps.tag.outputs.tag }}
             civo/civo-cloud-controller-manager:latest
