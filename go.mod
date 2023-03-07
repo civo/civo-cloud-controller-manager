@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/civo/civogo v0.3.19
-	github.com/emicklei/go-restful v2.11.1+incompatible // indirect
+	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0 // indirect
