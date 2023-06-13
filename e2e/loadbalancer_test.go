@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"testing"
 
 	"github.com/civo/civogo"
@@ -238,66 +237,6 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 		return svc.Status.LoadBalancer.Ingress[0].IP
 	}, "5m", "5s").ShouldNot(BeEmpty())
 
-}
-
-func TestLoadbalancerMaxConcurrentRequests(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
-	g.Expect(err).ShouldNot(HaveOccurred())
-
-	lbls := map[string]string{"app": "mirror-pod"}
-	// Create a service of type: LoadBalancer
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "echo-pods",
-			Namespace: "default",
-			Annotations: map[string]string{
-				"kubernetes.civo.com/max-concurrent-requests": "20000",
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8081)},
-				{Name: "https", Protocol: "TCP", Port: 443, TargetPort: intstr.FromInt(8444)},
-			},
-			Selector: lbls,
-			Type:     "LoadBalancer",
-		},
-	}
-
-	fmt.Println("Creating Service")
-	err = e2eTest.tenantClient.Create(context.TODO(), svc)
-	g.Expect(err).ShouldNot(HaveOccurred())
-
-	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-			return ""
-		}
-		return svc.Status.LoadBalancer.Ingress[0].Hostname
-	}, "5m", "5s").ShouldNot(BeEmpty())
-
-	// Check whether lb spec is updated with max-concurrent-requests
-	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-			return ""
-		}
-		lb, err := e2eTest.civo.GetLoadBalancer(svc.Status.LoadBalancer.Ingress[0].Hostname)
-		if err != nil {
-			return ""
-		}
-		return strconv.Itoa(lb.MaxConcurrentRequests)
-	}, "5m", "5s").Should(Equal("20000"))
-
-	// Cleanup
-	err = cleanUp(mirrorDeploy, svc)
-	g.Expect(err).ShouldNot(HaveOccurred())
-
-	g.Eventually(func() error {
-		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-	}, "2m", "5s").ShouldNot(BeNil())
 }
 
 func cleanUp(mirrorDeploy *appsv1.Deployment, svc *corev1.Service) error {

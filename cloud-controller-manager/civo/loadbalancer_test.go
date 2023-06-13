@@ -216,6 +216,26 @@ func TestUpdateServiceAnnotation(t *testing.T) {
 				},
 			},
 		},
+		{
+			"Annotation for max concurrent requests set to 20000",
+			&corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+			"kubernetes.civo.com/max-concurrent-requests",
+			"20000",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/max-concurrent-requests": "20000",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -261,10 +281,11 @@ func TestGetLoadBalanacer(t *testing.T) {
 					Name:      "test",
 					Namespace: corev1.NamespaceDefault,
 					Annotations: map[string]string{
-						annotationCivoLoadBalancerID:   "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-						annotationCivoFirewallID:       "fc91d382-2609-4f5c-a875-1491776fab8c",
-						annotationCivoClusterID:        "a32fe5eb-1922-43e8-81bc-7f83b4011334",
-						annotationCivoLoadBalancerName: "civo-lb-test",
+						annotationCivoLoadBalancerID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
+						annotationCivoFirewallID:                        "fc91d382-2609-4f5c-a875-1491776fab8c",
+						annotationCivoClusterID:                         "a32fe5eb-1922-43e8-81bc-7f83b4011334",
+						annotationCivoLoadBalancerName:                  "civo-lb-test",
+						annotationCivoLoadBalancerMaxConcurrentRequests: "10000",
 					},
 				},
 				Spec: corev1.ServiceSpec{
@@ -281,13 +302,14 @@ func TestGetLoadBalanacer(t *testing.T) {
 			},
 			store: []civogo.LoadBalancer{
 				{
-					ID:         "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-					Name:       "civo-lb-test",
-					Algorithm:  "round-robin",
-					PublicIP:   "192.168.11.11",
-					FirewallID: "fc91d382-2609-4f5c-a875-1491776fab8c",
-					ClusterID:  "a32fe5eb-1922-43e8-81bc-7f83b4011334",
-					State:      statusAvailable,
+					ID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
+					Name:                  "civo-lb-test",
+					Algorithm:             "round-robin",
+					PublicIP:              "192.168.11.11",
+					FirewallID:            "fc91d382-2609-4f5c-a875-1491776fab8c",
+					ClusterID:             "a32fe5eb-1922-43e8-81bc-7f83b4011334",
+					State:                 statusAvailable,
+					MaxConcurrentRequests: 10000,
 				},
 			},
 			expected: &corev1.LoadBalancerStatus{
@@ -683,10 +705,11 @@ func TestUpdateLoadBalancer(t *testing.T) {
 					Name:      "test-update",
 					Namespace: corev1.NamespaceDefault,
 					Annotations: map[string]string{
-						annotationCivoLoadBalancerID:                  "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-						annotationCivoClusterID:                       "a32fe5eb-1922-43e8-81bc-7f83b4011334",
-						annotationCivoLoadBalancerAlgorithm:           "least-connections",
-						annotationCivoLoadBalancerEnableProxyProtocol: "send-proxy",
+						annotationCivoLoadBalancerID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
+						annotationCivoClusterID:                         "a32fe5eb-1922-43e8-81bc-7f83b4011334",
+						annotationCivoLoadBalancerAlgorithm:             "least-connections",
+						annotationCivoLoadBalancerEnableProxyProtocol:   "send-proxy",
+						annotationCivoLoadBalancerMaxConcurrentRequests: "30000",
 					},
 				},
 				Spec: corev1.ServiceSpec{
@@ -746,6 +769,7 @@ func TestUpdateLoadBalancer(t *testing.T) {
 							IP: "192.168.1.2",
 						},
 					},
+					MaxConcurrentRequests: 30000,
 				},
 			},
 			err: nil,
@@ -790,6 +814,10 @@ func TestUpdateLoadBalancer(t *testing.T) {
 
 			if svc.Annotations[annotationCivoLoadBalancerAlgorithm] != "" {
 				g.Expect(svc.Annotations[annotationCivoLoadBalancerAlgorithm]).To(Equal("least-connections"))
+			}
+
+			if svc.Annotations[annotationCivoLoadBalancerMaxConcurrentRequests] != "" {
+				g.Expect(svc.Annotations[annotationCivoLoadBalancerMaxConcurrentRequests]).To(Equal("30000"))
 			}
 		})
 	}
