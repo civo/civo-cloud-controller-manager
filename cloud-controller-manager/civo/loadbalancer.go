@@ -3,6 +3,7 @@ package civo
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -22,6 +23,9 @@ const (
 
 	// annotationCivoFirewallID is the annotation specifying the CivoFirewall ID.
 	annotationCivoFirewallID = "kubernetes.civo.com/firewall-id"
+
+	// annotationCivoLoadBalancerMaxConcurrentRequests is the annotation specifying the max number of concurrent requests a CivoLoadBalancer can afford
+	annotationCivoLoadBalancerMaxConcurrentRequests = "kubernetes.civo.com/max-concurrent-requests"
 
 	// annotationCivoLoadBalancerEnableProxyProtocol is the annotation specifying whether PROXY protocol should be enabled.
 	annotationCivoLoadBalancerEnableProxyProtocol = "kubernetes.civo.com/loadbalancer-enable-proxy-protocol"
@@ -133,6 +137,15 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 	}
 	if firewallID := getFirewallID(service); firewallID != "" {
 		lbuc.FirewallID = firewallID
+	}
+
+	if maxConcurrentReq := getMaxConcurrentRequests(service); maxConcurrentReq != "" {
+		maxReq, err := strconv.Atoi(maxConcurrentReq)
+		if err != nil {
+			klog.Errorf("Unable to parse Loadbalancer MaxConcurrentRequests annotation, error: %s", err.Error())
+			return nil, err
+		}
+		lbuc.MaxConcurrentRequests = &maxReq
 	}
 
 	backends := []civogo.LoadBalancerBackendConfig{}
@@ -257,6 +270,9 @@ func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	if civolb.EnableProxyProtocol != ulb.EnableProxyProtocol {
 		updateServiceAnnotation(service, annotationCivoLoadBalancerEnableProxyProtocol, ulb.EnableProxyProtocol)
 	}
+	if civolb.MaxConcurrentRequests != ulb.MaxConcurrentRequests {
+		updateServiceAnnotation(service, annotationCivoLoadBalancerMaxConcurrentRequests, fmt.Sprint(ulb.MaxConcurrentRequests))
+	}
 
 	return nil
 }
@@ -315,6 +331,7 @@ func getLoadBalancer(ctx context.Context, c civogo.Clienter, kclient kubernetes.
 			updateServiceAnnotation(service, annotationCivoLoadBalancerName, civolb.Name)
 			updateServiceAnnotation(service, annotationCivoClusterID, ClusterID)
 			updateServiceAnnotation(service, annotationCivoFirewallID, civolb.FirewallID)
+			updateServiceAnnotation(service, annotationCivoLoadBalancerMaxConcurrentRequests, fmt.Sprint(civolb.MaxConcurrentRequests))
 			updateServiceAnnotation(service, annotationCivoLoadBalancerAlgorithm, civolb.Algorithm)
 		}
 	}
@@ -346,6 +363,15 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 		lbc.FirewallID = firewallID
 	}
 
+	if maxConcurrentReq := getMaxConcurrentRequests(service); maxConcurrentReq != "" {
+		maxReq, err := strconv.Atoi(maxConcurrentReq)
+		if err != nil {
+			klog.Errorf("Unable to parse Loadbalancer MaxConcurrentRequests annotation, error: %s", err.Error())
+			return err
+		}
+		lbc.MaxConcurrentRequests = &maxReq
+	}
+
 	backends := []civogo.LoadBalancerBackendConfig{}
 	for _, port := range service.Spec.Ports {
 		for _, node := range nodes {
@@ -373,6 +399,7 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 	updateServiceAnnotation(service, annotationCivoLoadBalancerID, lb.ID)
 	updateServiceAnnotation(service, annotationCivoLoadBalancerName, lb.Name)
 	updateServiceAnnotation(service, annotationCivoLoadBalancerAlgorithm, lb.Algorithm)
+	updateServiceAnnotation(service, annotationCivoLoadBalancerMaxConcurrentRequests, fmt.Sprint(lb.MaxConcurrentRequests))
 
 	if lb.EnableProxyProtocol != "" {
 		updateServiceAnnotation(service, annotationCivoLoadBalancerEnableProxyProtocol, lb.EnableProxyProtocol)
@@ -411,6 +438,11 @@ func getReservedIPFromAnnotation(service *v1.Service) string {
 // getFirewallID returns the firewallID value from the service annotation.
 func getFirewallID(service *v1.Service) string {
 	return service.Annotations[annotationCivoFirewallID]
+}
+
+// getMaxConcurrentRequests returns the max concurrent requests a CivoLoadbalancer could afford from the service annotation.
+func getMaxConcurrentRequests(service *v1.Service) string {
+	return service.Annotations[annotationCivoLoadBalancerMaxConcurrentRequests]
 }
 
 func getProtocol(svc *v1.Service, port v1.ServicePort) string {

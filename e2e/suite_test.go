@@ -239,7 +239,7 @@ func run(secret *corev1.Secret, kubeconfig string) {
 
 	// Set the provider name
 	opts.KubeCloudShared.CloudProvider.Name = civo.ProviderName
-	opts.Kubeconfig = "./kubeconfig"
+	opts.Generic.ClientConnection.Kubeconfig = "./kubeconfig"
 	// Disable Cloud Routes
 	opts.KubeCloudShared.ConfigureCloudRoutes = false
 
