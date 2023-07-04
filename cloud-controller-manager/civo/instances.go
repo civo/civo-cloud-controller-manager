@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/civo/civo-cloud-controller-manager/cloud-controller-manager/pkg/utils"
+	"github.com/civo/civogo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,11 +35,19 @@ func (i *instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v
 		return nil, err
 	}
 
-	a := v1.NodeAddress{Type: "InternalIP", Address: instance.PrivateIP}
-
 	// Return Public and Private Addresses
-	return []v1.NodeAddress{a}, nil
+	return getAddressessFromCivoInstance(instance), nil
 
+}
+
+func getAddressessFromCivoInstance(instance civogo.Instance) []v1.NodeAddress {
+	nodeAdresses := make([]v1.NodeAddress, 0, 2)
+	nodeAdresses = append(nodeAdresses, v1.NodeAddress{Type: v1.NodeInternalIP, Address: instance.PrivateIP})
+	if instance.PublicIP != "" {
+		nodeAdresses = append(nodeAdresses, v1.NodeAddress{Type: v1.NodeExternalIP, Address: instance.PublicIP})
+	}
+
+	return nodeAdresses
 }
 
 // NodeAddressesByProviderID returns the addresses of the specified instance.
@@ -53,10 +62,8 @@ func (i *instances) NodeAddressesByProviderID(ctx context.Context, providerID st
 		return nil, err
 	}
 
-	a := v1.NodeAddress{Type: "InternalIP", Address: instance.PrivateIP}
-
 	// Return Public and Private Addresses
-	return []v1.NodeAddress{a}, nil
+	return getAddressessFromCivoInstance(instance), nil
 }
 
 // InstanceID returns the cloud provider ID of the node with the specified NodeName.
