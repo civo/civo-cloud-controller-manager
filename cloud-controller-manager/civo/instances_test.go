@@ -78,6 +78,7 @@ func TestNodeAddressesByProviderID(t *testing.T) {
 			ID:        "acb5cbd0-ef7f-4edd-8a51-005940fdb7a8",
 			Hostname:  "test-node",
 			PrivateIP: "192.168.11.11",
+			PublicIP:  "127.0.0.101",
 		},
 	}
 	expected :=
@@ -85,6 +86,10 @@ func TestNodeAddressesByProviderID(t *testing.T) {
 			{
 				Type:    corev1.NodeInternalIP,
 				Address: "192.168.11.11",
+			},
+			corev1.NodeAddress{
+				Type:    corev1.NodeExternalIP,
+				Address: "127.0.0.101",
 			},
 		}
 	clusterStore := []civogo.KubernetesCluster{
