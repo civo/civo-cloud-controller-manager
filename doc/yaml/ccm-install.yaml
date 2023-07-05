@@ -72,7 +72,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: civo-ccm
-        image: civo/civo-cloud-controller-manager:latest
+        image: gcr.io/consummate-yew-302509/civo-cloud-controller-manager:latest
         args:
           - "--cloud-provider=civo"
         env:
