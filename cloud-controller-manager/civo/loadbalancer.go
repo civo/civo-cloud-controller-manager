@@ -42,8 +42,14 @@ const (
 	// annotationCivoIPv4 is the annotation specifying the reserved IP.
 	annotationCivoIPv4 = "kubernetes.civo.com/ipv4-address"
 
-	// annDOProtocol is the annotation used to specify the protocol for the load balancer
+	// annotationProtocol is the annotation used to specify the protocol for the load balancer
 	annotationCivoProtocol = "kubernetes.civo.com/protocol"
+
+	// annotationServerTimeout is the annotation used to specify the server timeout for the load balancer
+	annotationServerTimeout = "kubernetes.civo.com/server-timeout"
+
+	// annotationClientTimeout is the annotation used to specify the client timeout for the load balancer
+	annotationClientTimeout = "kubernetes.civo.com/client-timeout"
 )
 
 type loadbalancer struct {
@@ -146,6 +152,26 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 			return nil, err
 		}
 		lbuc.MaxConcurrentRequests = &maxReq
+	}
+
+	if serverTimeout := getServerTimeout(service); serverTimeout != "" {
+		if lbuc.LoadBalancerOptions == nil {
+			lbuc.LoadBalancerOptions = &civogo.LoadBalancerOptions{
+				ServerTimeout: serverTimeout,
+			}
+		} else {
+			lbuc.LoadBalancerOptions.ServerTimeout = serverTimeout
+		}
+	}
+
+	if clientTimeout := getClientTimeout(service); clientTimeout != "" {
+		if lbuc.LoadBalancerOptions == nil {
+			lbuc.LoadBalancerOptions = &civogo.LoadBalancerOptions{
+				ClientTimeout: clientTimeout,
+			}
+		} else {
+			lbuc.LoadBalancerOptions.ClientTimeout = clientTimeout
+		}
 	}
 
 	backends := []civogo.LoadBalancerBackendConfig{}
@@ -274,6 +300,11 @@ func (l *loadbalancer) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		updateServiceAnnotation(service, annotationCivoLoadBalancerMaxConcurrentRequests, fmt.Sprint(ulb.MaxConcurrentRequests))
 	}
 
+	if civolb.Options != nil {
+		updateServiceAnnotation(service, annotationServerTimeout, civolb.Options.ServerTimeout)
+		updateServiceAnnotation(service, annotationClientTimeout, civolb.Options.ClientTimeout)
+	}
+
 	return nil
 }
 
@@ -333,6 +364,10 @@ func getLoadBalancer(ctx context.Context, c civogo.Clienter, kclient kubernetes.
 			updateServiceAnnotation(service, annotationCivoFirewallID, civolb.FirewallID)
 			updateServiceAnnotation(service, annotationCivoLoadBalancerMaxConcurrentRequests, fmt.Sprint(civolb.MaxConcurrentRequests))
 			updateServiceAnnotation(service, annotationCivoLoadBalancerAlgorithm, civolb.Algorithm)
+			if civolb.Options != nil {
+				updateServiceAnnotation(service, annotationServerTimeout, civolb.Options.ServerTimeout)
+				updateServiceAnnotation(service, annotationClientTimeout, civolb.Options.ClientTimeout)
+			}
 		}
 	}
 
@@ -405,6 +440,11 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 		updateServiceAnnotation(service, annotationCivoLoadBalancerEnableProxyProtocol, lb.EnableProxyProtocol)
 	}
 
+	if lb.Options != nil {
+		updateServiceAnnotation(service, annotationServerTimeout, lb.Options.ServerTimeout)
+		updateServiceAnnotation(service, annotationClientTimeout, lb.Options.ClientTimeout)
+	}
+
 	return nil
 }
 
@@ -450,4 +490,20 @@ func getProtocol(svc *v1.Service, port v1.ServicePort) string {
 		return strings.ToUpper(svc.Annotations[annotationCivoProtocol])
 	}
 	return string(port.Protocol)
+}
+
+func getServerTimeout(svc *v1.Service) string {
+	if svc.Annotations[annotationServerTimeout] != "" {
+		return svc.Annotations[annotationServerTimeout]
+	}
+
+	return svc.Annotations[annotationServerTimeout]
+}
+
+func getClientTimeout(svc *v1.Service) string {
+	if svc.Annotations[annotationClientTimeout] != "" {
+		return svc.Annotations[annotationClientTimeout]
+	}
+
+	return svc.Annotations[annotationClientTimeout]
 }

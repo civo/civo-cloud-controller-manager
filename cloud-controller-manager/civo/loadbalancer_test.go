@@ -236,6 +236,46 @@ func TestUpdateServiceAnnotation(t *testing.T) {
 				},
 			},
 		},
+		{
+			"Annotation for server timeout to 120s",
+			&corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+			"kubernetes.civo.com/server-timeout",
+			"120s",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/server-timeout": "120s",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+		{
+			"Annotation for client timeout to 120s",
+			&corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+			"kubernetes.civo.com/client-timeout",
+			"120s",
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubernetes.civo.com/client-timeout": "120s",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -286,6 +326,8 @@ func TestGetLoadBalanacer(t *testing.T) {
 						annotationCivoClusterID:                         "a32fe5eb-1922-43e8-81bc-7f83b4011334",
 						annotationCivoLoadBalancerName:                  "civo-lb-test",
 						annotationCivoLoadBalancerMaxConcurrentRequests: "10000",
+						annotationServerTimeout:                         "120s",
+						annotationClientTimeout:                         "120s",
 					},
 				},
 				Spec: corev1.ServiceSpec{
@@ -310,6 +352,10 @@ func TestGetLoadBalanacer(t *testing.T) {
 					ClusterID:             "a32fe5eb-1922-43e8-81bc-7f83b4011334",
 					State:                 statusAvailable,
 					MaxConcurrentRequests: 10000,
+					Options: &civogo.LoadBalancerOptions{
+						ServerTimeout: "120s",
+						ClientTimeout: "120s",
+					},
 				},
 			},
 			expected: &corev1.LoadBalancerStatus{

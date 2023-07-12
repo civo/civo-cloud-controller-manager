@@ -24,6 +24,8 @@ Read More: https://www.civo.com/learn/managing-external-load-balancers-on-civo
 | kubernetes.civo.com/loadbalancer-algorithm | Custom the algorithm the external load balancer uses | round_robin<br />least_connections |
 | kubernetes.civo.com/ipv4-address | If set, LoadBalancer will have the mentioned IP as the public IP. Please note: the reserved IP should be present in the account before claiming it. | 10.0.0.20<br/> my-reserved-ip |
 | kubernetes.civo.com/protocol | If set, this will override the protocol set on the svc with this | http<br />tcp |
+| kubernetes.civo.com/server-timeout| server timeout determines how long the load balancer will wait for a response from the server/upstream. Defaults to 60s | 60s<br /> 120m |
+| kubernetes.civo.com/client-timeout| client timeout determines how long the load balancer will wait for any activity from the client/downstream. Defaults to 60s | 60s<br /> 120m |
 
 ### Load Balancer Status Annotations
 
