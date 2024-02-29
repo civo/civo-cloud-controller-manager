@@ -133,7 +133,7 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 	lbuc := civogo.LoadBalancerUpdateConfig{
 		ExternalTrafficPolicy: string(service.Spec.ExternalTrafficPolicy),
 		Region:                Region,
-		UserGivenName:         civolb.UserGivenName,
+		ServiceName:           civolb.ServiceName,
 	}
 
 	if enableProxyProtocol := getEnableProxyProtocol(service); enableProxyProtocol != "" {
@@ -383,7 +383,7 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 	}
 	lbc := civogo.LoadBalancerConfig{
 		Name:                  getLoadBalancerName(cluster.Name, service),
-		UserGivenName:         service.Name,
+		ServiceName:           service.Name,
 		ClusterID:             ClusterID,
 		NetworkID:             cluster.NetworkID,
 		ExternalTrafficPolicy: string(service.Spec.ExternalTrafficPolicy),
