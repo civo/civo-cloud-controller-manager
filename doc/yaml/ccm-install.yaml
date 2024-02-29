@@ -62,6 +62,7 @@ spec:
         app: civo-ccm
         role: civo-ccm
     spec:
+      priorityClassName: system-cluster-critical
       serviceAccount: civo-ccm-sa
       dnsPolicy: Default
       hostNetwork: true
