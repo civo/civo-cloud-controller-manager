@@ -3,7 +3,7 @@ module github.com/civo/civo-cloud-controller-manager
 go 1.20
 
 require (
-	github.com/civo/civogo v0.3.60
+	github.com/civo/civogo v0.3.61
 	github.com/joho/godotenv v1.4.0
 	github.com/onsi/gomega v1.27.7
 	k8s.io/api v0.27.2
