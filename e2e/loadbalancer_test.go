@@ -3,8 +3,6 @@ package test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"testing"
 
 	"github.com/civo/civogo"
@@ -18,8 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// TODO: revert the changes before merging.
-func aTestLoadbalancerBasic(t *testing.T) {
+func TestLoadbalancerBasic(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
@@ -69,8 +66,7 @@ func aTestLoadbalancerBasic(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeNil())
 }
 
-// TODO: revert the changes before merging.
-func aTestLoadbalancerProxy(t *testing.T) {
+func TestLoadbalancerProxy(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
@@ -118,67 +114,66 @@ func aTestLoadbalancerProxy(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeNil())
 }
 
-// TODO: revert the changes before merging.
-func aTestLoadbalancerHTTPForwardFor(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	defer e2eTest.tenantClient.Delete(context.TODO(), mirrorDeploy)
-
-	lbls := map[string]string{"app": "mirror-pod"}
-	// Create a service of type: LoadBalancer
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "echo-pods",
-			Namespace: "default",
-			Annotations: map[string]string{
-				"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
-				"kubernetes.civo.com/firewall-id":                        e2eTest.cluster.FirewallID,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8080)},
-			},
-			Selector:              lbls,
-			Type:                  "LoadBalancer",
-			ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeLocal,
-		},
-	}
-
-	fmt.Println("Creating Service")
-	err = e2eTest.tenantClient.Create(context.TODO(), svc)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	defer e2eTest.tenantClient.Delete(context.TODO(), svc)
-
-	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-		g.Expect(err).ShouldNot(HaveOccurred())
-		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-			return ""
-		}
-		return svc.Status.LoadBalancer.Ingress[0].IP
-	}, "5m", "5s").ShouldNot(BeEmpty())
-
-	// Make a Web Request
-	err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-	g.Expect(err).ShouldNot(HaveOccurred())
-
-	resp, err := http.Get("http://" + svc.Status.LoadBalancer.Ingress[0].IP)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	body, err := ioutil.ReadAll(resp.Body)
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(string(body)).Should(ContainSubstring("x-forwarded-for"))
-
-	// Cleanup
-	err = cleanUp(mirrorDeploy, svc)
-	g.Expect(err).ShouldNot(HaveOccurred())
-
-	g.Eventually(func() error {
-		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
-	}, "2m", "5s").ShouldNot(BeNil())
-}
+// func TestLoadbalancerHTTPForwardFor(t *testing.T) {
+// 	g := NewGomegaWithT(t)
+//
+// 	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
+// 	g.Expect(err).ShouldNot(HaveOccurred())
+// 	defer e2eTest.tenantClient.Delete(context.TODO(), mirrorDeploy)
+//
+// 	lbls := map[string]string{"app": "mirror-pod"}
+// 	// Create a service of type: LoadBalancer
+// 	svc := &corev1.Service{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      "echo-pods",
+// 			Namespace: "default",
+// 			Annotations: map[string]string{
+// 				"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
+// 				"kubernetes.civo.com/firewall-id":                        e2eTest.cluster.FirewallID,
+// 			},
+// 		},
+// 		Spec: corev1.ServiceSpec{
+// 			Ports: []corev1.ServicePort{
+// 				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8080)},
+// 			},
+// 			Selector:              lbls,
+// 			Type:                  "LoadBalancer",
+// 			ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeLocal,
+// 		},
+// 	}
+//
+// 	fmt.Println("Creating Service")
+// 	err = e2eTest.tenantClient.Create(context.TODO(), svc)
+// 	g.Expect(err).ShouldNot(HaveOccurred())
+// 	defer e2eTest.tenantClient.Delete(context.TODO(), svc)
+//
+// 	g.Eventually(func() string {
+// 		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+// 		g.Expect(err).ShouldNot(HaveOccurred())
+// 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
+// 			return ""
+// 		}
+// 		return svc.Status.LoadBalancer.Ingress[0].IP
+// 	}, "5m", "5s").ShouldNot(BeEmpty())
+//
+// 	// Make a Web Request
+// 	err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+// 	g.Expect(err).ShouldNot(HaveOccurred())
+//
+// 	resp, err := http.Get("http://" + svc.Status.LoadBalancer.Ingress[0].IP)
+// 	g.Expect(err).ShouldNot(HaveOccurred())
+// 	body, err := ioutil.ReadAll(resp.Body)
+// 	g.Expect(err).ShouldNot(HaveOccurred())
+// 	g.Expect(string(body)).Should(ContainSubstring("x-forwarded-for"))
+//
+// 	// Cleanup
+// 	err = cleanUp(mirrorDeploy, svc)
+// 	g.Expect(err).ShouldNot(HaveOccurred())
+//
+// 	g.Eventually(func() error {
+// 		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+// 	}, "2m", "5s").ShouldNot(BeNil())
+// }
 
 func TestLoadbalancerReservedIP(t *testing.T) {
 	g := NewGomegaWithT(t)
