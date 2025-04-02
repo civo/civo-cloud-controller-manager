@@ -257,7 +257,8 @@ func getOrCreateIP(c *civogo.Client) (*civogo.IP, error) {
 	ip, err := c.FindIP("ccm-e2e-test-ip")
 	if err != nil && civogo.ZeroMatchesError.Is(err) {
 		ip, err = c.NewIP(&civogo.CreateIPRequest{
-			Name: "ccm-e2e-test-ip",
+			Name:   "ccm-e2e-test-ip",
+			Region: e2eTest.civo.Region,
 		})
 		if err != nil {
 			return nil, err
