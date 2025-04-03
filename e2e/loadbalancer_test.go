@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -11,18 +12,18 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestLoadbalancerBasic(t *testing.T) {
-
+	ctx := t.Context()
 	g := NewGomegaWithT(t)
 
-	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
+	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
-	defer e2eTest.tenantClient.Delete(context.TODO(), mirrorDeploy)
+	defer e2eTest.tenantClient.Delete(ctx, mirrorDeploy)
 
 	lbls := map[string]string{"app": "mirror-pod"}
 	// Create a service of type: LoadBalancer
@@ -45,12 +46,12 @@ func TestLoadbalancerBasic(t *testing.T) {
 	}
 
 	fmt.Println("Creating Service")
-	err = e2eTest.tenantClient.Create(context.TODO(), svc)
+	err = e2eTest.tenantClient.Create(ctx, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
-	defer e2eTest.tenantClient.Delete(context.TODO(), svc)
+	defer e2eTest.tenantClient.Delete(ctx, svc)
 
 	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
@@ -58,18 +59,19 @@ func TestLoadbalancerBasic(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeEmpty())
 
 	// Cleanup
-	err = cleanUp(mirrorDeploy, svc)
+	err = cleanUp(ctx, mirrorDeploy, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	g.Eventually(func() error {
-		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 	}, "2m", "5s").ShouldNot(BeNil())
 }
 
 func TestLoadbalancerProxy(t *testing.T) {
+	ctx := t.Context()
 	g := NewGomegaWithT(t)
 
-	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
+	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	lbls := map[string]string{"app": "mirror-pod"}
@@ -94,11 +96,11 @@ func TestLoadbalancerProxy(t *testing.T) {
 	}
 
 	fmt.Println("Creating Service")
-	err = e2eTest.tenantClient.Create(context.TODO(), svc)
+	err = e2eTest.tenantClient.Create(ctx, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
@@ -106,20 +108,22 @@ func TestLoadbalancerProxy(t *testing.T) {
 	}, "5m", "5s").ShouldNot(BeEmpty())
 
 	// Cleanup
-	err = cleanUp(mirrorDeploy, svc)
+	err = cleanUp(ctx, mirrorDeploy, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	g.Eventually(func() error {
-		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 	}, "2m", "5s").ShouldNot(BeNil())
 }
 
+// TODO
 // func TestLoadbalancerHTTPForwardFor(t *testing.T) {
+// ctx := t.Context()
 // 	g := NewGomegaWithT(t)
 //
 // 	mirrorDeploy, err := deployMirrorPods(e2eTest.tenantClient)
 // 	g.Expect(err).ShouldNot(HaveOccurred())
-// 	defer e2eTest.tenantClient.Delete(context.TODO(), mirrorDeploy)
+// 	defer e2eTest.tenantClient.Delete(ctx, mirrorDeploy)
 //
 // 	lbls := map[string]string{"app": "mirror-pod"}
 // 	// Create a service of type: LoadBalancer
@@ -143,12 +147,12 @@ func TestLoadbalancerProxy(t *testing.T) {
 // 	}
 //
 // 	fmt.Println("Creating Service")
-// 	err = e2eTest.tenantClient.Create(context.TODO(), svc)
+// 	err = e2eTest.tenantClient.Create(ctx, svc)
 // 	g.Expect(err).ShouldNot(HaveOccurred())
-// 	defer e2eTest.tenantClient.Delete(context.TODO(), svc)
+// 	defer e2eTest.tenantClient.Delete(ctx, svc)
 //
 // 	g.Eventually(func() string {
-// 		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+// 		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 // 		g.Expect(err).ShouldNot(HaveOccurred())
 // 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 // 			return ""
@@ -157,7 +161,7 @@ func TestLoadbalancerProxy(t *testing.T) {
 // 	}, "5m", "5s").ShouldNot(BeEmpty())
 //
 // 	// Make a Web Request
-// 	err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+// 	err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 // 	g.Expect(err).ShouldNot(HaveOccurred())
 //
 // 	resp, err := http.Get("http://" + svc.Status.LoadBalancer.Ingress[0].IP)
@@ -171,19 +175,30 @@ func TestLoadbalancerProxy(t *testing.T) {
 // 	g.Expect(err).ShouldNot(HaveOccurred())
 //
 // 	g.Eventually(func() error {
-// 		return e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+// 		return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 // 	}, "2m", "5s").ShouldNot(BeNil())
 // }
 
 func TestLoadbalancerReservedIP(t *testing.T) {
+	ctx := t.Context()
 	g := NewGomegaWithT(t)
 
-	_, err := deployMirrorPods(e2eTest.tenantClient)
+	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
+	defer func() {
+		err := cleanUp(ctx, mirrorDeploy, nil)
+		g.Expect(err).ShouldNot(HaveOccurred())
+	}()
 
 	fmt.Println("Create a reserved IP for e2e test (if it doesn't exist)")
-	ip, err := getOrCreateIP(e2eTest.civo)
+	ip, ipCleanup, err := getOrCreateIP(e2eTest.civo)
 	g.Expect(err).ShouldNot(HaveOccurred())
+	if ipCleanup != nil {
+		defer func() {
+			err = ipCleanup()
+			g.Expect(err).ShouldNot(HaveOccurred())
+		}()
+	}
 
 	g.Eventually(func() string {
 		ip, err = e2eTest.civo.GetIP(ip.ID)
@@ -191,11 +206,22 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeEmpty())
 
 	fmt.Println("Creating Service")
-	svc, err := getOrCreateSvc(e2eTest.tenantClient)
+	svc, svcCreated, err := getOrCreateSvc(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
+	if svcCreated {
+		defer func() {
+			err := cleanUp(ctx, nil, svc)
+			g.Expect(err).ShouldNot(HaveOccurred())
+
+			// Service deletion takes time, so make sure to check until it is fully deleted just in case.
+			g.Eventually(func() error {
+				return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
+			}, "2m", "5s").ShouldNot(BeNil())
+		}()
+	}
 
 	patchSvc := &corev1.Service{}
-	err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), patchSvc)
+	err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), patchSvc)
 	originalSvc := svc.DeepCopy()
 	if patchSvc.Annotations == nil {
 		patchSvc.Annotations = make(map[string]string, 0)
@@ -205,11 +231,11 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 	}
 
 	fmt.Println("Updating service with reserved IP annotation")
-	err = e2eTest.tenantClient.Patch(context.TODO(), patchSvc, client.MergeFrom(originalSvc))
+	err = e2eTest.tenantClient.Patch(ctx, patchSvc, client.MergeFrom(originalSvc))
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
@@ -219,12 +245,12 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 	// Unassign reserved IP
 	fmt.Println("Unassigning IP from LB")
 	svc.Annotations = nil
-	err = e2eTest.tenantClient.Update(context.TODO(), svc)
+	err = e2eTest.tenantClient.Update(ctx, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
 
 	fmt.Println("Waiting for auto-assigned IP to be attached to LB")
 	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
@@ -233,7 +259,7 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 
 	// To make sure an auto-assigned IP is actually assigned to the LB
 	g.Eventually(func() string {
-		err = e2eTest.tenantClient.Get(context.TODO(), client.ObjectKeyFromObject(svc), svc)
+		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
@@ -242,13 +268,17 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 
 }
 
-func cleanUp(mirrorDeploy *appsv1.Deployment, svc *corev1.Service) error {
-	e2eTest.tenantClient.Delete(context.TODO(), svc)
-
-	return e2eTest.tenantClient.Delete(context.TODO(), mirrorDeploy)
+func cleanUp(ctx context.Context, mirrorDeploy *appsv1.Deployment, svc *corev1.Service) (err error) {
+	if svc != nil {
+		err = e2eTest.tenantClient.Delete(ctx, svc)
+	}
+	if mirrorDeploy != nil {
+		err = errors.Join(err, e2eTest.tenantClient.Delete(ctx, mirrorDeploy))
+	}
+	return err
 }
 
-func getOrCreateIP(c *civogo.Client) (*civogo.IP, error) {
+func getOrCreateIP(c *civogo.Client) (_ *civogo.IP, cleanup func() error, _ error) {
 	ip, err := c.FindIP("ccm-e2e-test-ip")
 	if err != nil && civogo.ZeroMatchesError.Is(err) {
 		ip, err = c.NewIP(&civogo.CreateIPRequest{
@@ -256,18 +286,22 @@ func getOrCreateIP(c *civogo.Client) (*civogo.IP, error) {
 			Region: e2eTest.civo.Region,
 		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+		cleanup = func() error {
+			_, err := c.DeleteIP(ip.ID)
+			return err
 		}
 	} else if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return ip, err
+	return ip, cleanup, err
 }
 
-func getOrCreateSvc(c client.Client) (*corev1.Service, error) {
-	svc := &corev1.Service{}
-	err := c.Get(context.TODO(), client.ObjectKey{Name: "echo-pods", Namespace: "default"}, svc)
-	if err != nil && errors.IsNotFound(err) {
+func getOrCreateSvc(ctx context.Context, c client.Client) (svc *corev1.Service, created bool, _ error) {
+	svc = &corev1.Service{}
+	err := c.Get(ctx, client.ObjectKey{Name: "echo-pods", Namespace: "default"}, svc)
+	if err != nil && apierrors.IsNotFound(err) {
 		lbls := map[string]string{"app": "mirror-pod"}
 		// Create a service of type: LoadBalancer
 		svc = &corev1.Service{
@@ -287,18 +321,20 @@ func getOrCreateSvc(c client.Client) (*corev1.Service, error) {
 				Type:     "LoadBalancer",
 			},
 		}
-		err = c.Create(context.TODO(), svc)
-		return svc, err
+		if err := c.Create(ctx, svc); err != nil {
+			return nil, false, err
+		}
+		return svc, true, nil
 	} else if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return nil, err
+	return svc, false, err
 }
 
-func deployMirrorPods(c client.Client) (*appsv1.Deployment, error) {
+func deployMirrorPods(ctx context.Context, c client.Client) (*appsv1.Deployment, error) {
 	mirrorDeploy := &appsv1.Deployment{}
-	err := c.Get(context.TODO(), client.ObjectKey{Name: "echo-pods", Namespace: "default"}, mirrorDeploy)
-	if err != nil && errors.IsNotFound(err) {
+	err := c.Get(ctx, client.ObjectKey{Name: "echo-pods", Namespace: "default"}, mirrorDeploy)
+	if err != nil && apierrors.IsNotFound(err) {
 		lbls := map[string]string{"app": "mirror-pod"}
 		replicas := int32(2)
 		mirrorDeploy = &appsv1.Deployment{
@@ -335,7 +371,7 @@ func deployMirrorPods(c client.Client) (*appsv1.Deployment, error) {
 		}
 
 		fmt.Println("Creating mirror deployment")
-		err := c.Create(context.TODO(), mirrorDeploy)
+		err := c.Create(ctx, mirrorDeploy)
 		return mirrorDeploy, err
 	} else if err != nil {
 		return nil, err
