@@ -159,7 +159,10 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	if svcCreated {
 		t.Cleanup(func() {
-			err := cleanUp(context.Background(), nil, svc)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+
+			err := cleanUp(ctx, nil, svc)
 			g.Expect(err).ShouldNot(HaveOccurred())
 
 			// Service deletion takes time, so make sure to check until it is fully deleted just in case.
