@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/civo/civogo"
 	. "github.com/onsi/gomega"
@@ -23,7 +24,11 @@ func TestLoadbalancerBasic(t *testing.T) {
 
 	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
-	defer e2eTest.tenantClient.Delete(ctx, mirrorDeploy)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		e2eTest.tenantClient.Delete(ctx, mirrorDeploy)
+	})
 
 	lbls := map[string]string{"app": "mirror-pod"}
 	// Create a service of type: LoadBalancer
@@ -48,7 +53,11 @@ func TestLoadbalancerBasic(t *testing.T) {
 	fmt.Println("Creating Service")
 	err = e2eTest.tenantClient.Create(ctx, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
-	defer e2eTest.tenantClient.Delete(ctx, svc)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		e2eTest.tenantClient.Delete(ctx, svc)
+	})
 
 	g.Eventually(func() string {
 		err = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
@@ -185,19 +194,22 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 
 	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
-	defer func() {
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
 		err := cleanUp(ctx, mirrorDeploy, nil)
 		g.Expect(err).ShouldNot(HaveOccurred())
-	}()
+	})
 
 	fmt.Println("Create a reserved IP for e2e test (if it doesn't exist)")
 	ip, ipCleanup, err := getOrCreateIP(e2eTest.civo)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	if ipCleanup != nil {
-		defer func() {
+		t.Cleanup(func() {
 			err = ipCleanup()
 			g.Expect(err).ShouldNot(HaveOccurred())
-		}()
+		})
 	}
 
 	g.Eventually(func() string {
@@ -209,15 +221,15 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 	svc, svcCreated, err := getOrCreateSvc(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	if svcCreated {
-		defer func() {
-			err := cleanUp(ctx, nil, svc)
+		t.Cleanup(func() {
+			err := cleanUp(context.Background(), nil, svc)
 			g.Expect(err).ShouldNot(HaveOccurred())
 
 			// Service deletion takes time, so make sure to check until it is fully deleted just in case.
 			g.Eventually(func() error {
 				return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 			}, "2m", "5s").ShouldNot(BeNil())
-		}()
+		})
 	}
 
 	patchSvc := &corev1.Service{}
