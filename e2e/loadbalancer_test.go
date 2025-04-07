@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/civo/civogo"
 	. "github.com/onsi/gomega"
@@ -25,9 +24,8 @@ func TestLoadbalancerBasic(t *testing.T) {
 	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		e2eTest.tenantClient.Delete(ctx, mirrorDeploy)
+		err := e2eTest.tenantClient.Delete(context.Background(), mirrorDeploy)
+		g.Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	lbls := map[string]string{"app": "mirror-pod"}
@@ -54,9 +52,8 @@ func TestLoadbalancerBasic(t *testing.T) {
 	err = e2eTest.tenantClient.Create(ctx, svc)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		e2eTest.tenantClient.Delete(ctx, svc)
+		err := e2eTest.tenantClient.Delete(context.Background(), svc)
+		g.Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	g.Eventually(func() string {
@@ -132,10 +129,7 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-
-		err := cleanUp(ctx, mirrorDeploy, nil)
+		err := cleanUp(context.Background(), mirrorDeploy, nil)
 		g.Expect(err).ShouldNot(HaveOccurred())
 	})
 
