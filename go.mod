@@ -3,7 +3,7 @@ module github.com/civo/civo-cloud-controller-manager
 go 1.24.1
 
 require (
-	github.com/civo/civogo v0.3.61
+	github.com/civo/civogo v0.3.96
 	github.com/joho/godotenv v1.4.0
 	github.com/onsi/gomega v1.27.7
 	k8s.io/api v0.27.2
@@ -83,6 +83,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect

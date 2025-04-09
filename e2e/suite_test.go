@@ -142,7 +142,7 @@ func (e *E2ETest) provisionCluster() {
 		CivoRegion = "LON1"
 	}
 
-	CivoURL := os.Getenv("CIVO_URL")
+	CivoURL := os.Getenv("CIVO_API_URL")
 	if CivoURL == "" {
 		CivoURL = "https://api.civo.com"
 	}
@@ -178,9 +178,10 @@ func (e *E2ETest) provisionCluster() {
 		Pools: []civogo.KubernetesClusterPoolConfig{
 			{
 				Count: 2,
-				Size:  "g4s.kube.xsmall",
+				Size:  "g4s.kube.small",
 			},
 		},
+		FirewallRule: "443;80",
 	}
 
 	e.cluster, err = e.civo.NewKubernetesClusters(clusterConfig)
