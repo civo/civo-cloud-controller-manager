@@ -127,7 +127,7 @@ func TestLoadbalancerProxy(t *testing.T) {
 	}, "2m", "5s").ShouldNot(BeNil())
 }
 
-func TestLoadbalancerProxyProtocol(t *testing.T) {
+func TestLoadbalancerEnableProxyProtocol(t *testing.T) {
 	ctx := t.Context()
 	g := NewGomegaWithT(t)
 
@@ -171,9 +171,10 @@ func TestLoadbalancerProxyProtocol(t *testing.T) {
 		g.Expect(err).ShouldNot(HaveOccurred())
 
 		// Service deletion takes time, so make sure to check until it is fully deleted just in case.
-		g.Eventually(func() error {
-			return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
-		}, "2m", "5s").ShouldNot(HaveOccurred())
+		g.Eventually(func() bool {
+			err := e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
+			return apierrors.IsNotFound(err)
+		}, "2m", "5s").Should(BeTrue())
 	})
 
 	g.Eventually(func() string {
@@ -181,10 +182,10 @@ func TestLoadbalancerProxyProtocol(t *testing.T) {
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			return ""
 		}
-		return svc.Status.LoadBalancer.Ingress[0].IP
+		return svc.Status.LoadBalancer.Ingress[0].Hostname
 	}, "5m", "2m", "5s").ShouldNot(BeEmpty())
 
-	resp, err := http.Get("http://" + svc.Status.LoadBalancer.Ingress[0].IP)
+	resp, err := http.Get("http://" + svc.Status.LoadBalancer.Ingress[0].Hostname)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	t.Cleanup(func() {
 		if resp != nil {
@@ -239,9 +240,10 @@ func TestLoadbalancerReservedIP(t *testing.T) {
 			g.Expect(err).ShouldNot(HaveOccurred())
 
 			// Service deletion takes time, so make sure to check until it is fully deleted just in case.
-			g.Eventually(func() error {
-				return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
-			}, "2m", "5s").ShouldNot(BeNil())
+			g.Eventually(func() bool {
+				err := e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
+				return apierrors.IsNotFound(err)
+			}, "2m", "5s").Should(BeTrue())
 		})
 	}
 
