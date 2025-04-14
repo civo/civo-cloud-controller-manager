@@ -173,7 +173,7 @@ func TestLoadbalancerProxyProtocol(t *testing.T) {
 		// Service deletion takes time, so make sure to check until it is fully deleted just in case.
 		g.Eventually(func() error {
 			return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
-		}, "2m", "5s").ShouldNot(BeNil())
+		}, "2m", "5s").ShouldNot(HaveOccurred())
 	})
 
 	g.Eventually(func() string {
