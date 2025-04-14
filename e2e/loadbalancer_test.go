@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
@@ -123,6 +125,77 @@ func TestLoadbalancerProxy(t *testing.T) {
 	g.Eventually(func() error {
 		return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
 	}, "2m", "5s").ShouldNot(BeNil())
+}
+
+func TestLoadbalancerProxyProtocol(t *testing.T) {
+	ctx := t.Context()
+	g := NewGomegaWithT(t)
+
+	mirrorDeploy, err := deployMirrorPods(ctx, e2eTest.tenantClient)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		err := cleanUp(ctx, mirrorDeploy, nil)
+		g.Expect(err).ShouldNot(HaveOccurred())
+	})
+	g.Expect(err).ShouldNot(HaveOccurred())
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "echo-pods",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"kubernetes.civo.com/loadbalancer-enable-proxy-protocol": "send-proxy",
+				"kubernetes.civo.com/firewall-id":                        e2eTest.cluster.FirewallID,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{Name: "http", Protocol: "TCP", Port: 80, TargetPort: intstr.FromInt(8081)},
+			},
+			Selector:              mirrorDeploy.Spec.Template.Labels,
+			Type:                  "LoadBalancer",
+			ExternalTrafficPolicy: "Local",
+		},
+	}
+
+	t.Log("Creating Service")
+	err = e2eTest.tenantClient.Create(ctx, svc)
+	g.Expect(err).ShouldNot(HaveOccurred())
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		err := cleanUp(ctx, nil, svc)
+		g.Expect(err).ShouldNot(HaveOccurred())
+
+		// Service deletion takes time, so make sure to check until it is fully deleted just in case.
+		g.Eventually(func() error {
+			return e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
+		}, "2m", "5s").ShouldNot(BeNil())
+	})
+
+	g.Eventually(func() string {
+		_ = e2eTest.tenantClient.Get(ctx, client.ObjectKeyFromObject(svc), svc)
+		if len(svc.Status.LoadBalancer.Ingress) == 0 {
+			return ""
+		}
+		return svc.Status.LoadBalancer.Ingress[0].IP
+	}, "5m", "2m", "5s").ShouldNot(BeEmpty())
+
+	resp, err := http.Get("http://" + svc.Status.LoadBalancer.Ingress[0].IP)
+	g.Expect(err).ShouldNot(HaveOccurred())
+	t.Cleanup(func() {
+		if resp != nil {
+			g.Expect(resp.Body.Close()).ShouldNot(HaveOccurred())
+		}
+	})
+	b, err := io.ReadAll(resp.Body)
+	g.Expect(err).ShouldNot(HaveOccurred())
+
+	// NOTE: https://github.com/DMajrekar/dockerfiles/blob/main/nginx-echo/nginx.conf#L45-L48
+	g.Expect(string(b)).Should(ContainSubstring("proxy_client_address"))
 }
 
 func TestLoadbalancerReservedIP(t *testing.T) {
