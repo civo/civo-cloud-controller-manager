@@ -8,13 +8,11 @@ import (
 	cloudprovider "k8s.io/cloud-provider"
 )
 
-const (
-	// ProviderName is the name of the provider.
-	ProviderName string = "civo"
+// ProviderName is the name of the provider.
+const ProviderName string = "civo"
 
-	// CCMVersion is the version of the CCM.
-	CCMVersion string = "dev"
-)
+// CCMVersion is the version of the CCM.
+var CCMVersion string = "dev"
 
 var (
 	// APIURL is the URL of the Civo API.
