@@ -370,9 +370,28 @@ func getLoadBalancer(ctx context.Context, c civogo.Clienter, kclient kubernetes.
 				updateServiceAnnotation(service, annotationClientTimeout, civolb.Options.ClientTimeout)
 			}
 		}
+		return civolb, err
 	}
-
+	// The loadbalancer-id/loadbalancer-name annotations are user-controlled, so a successful lookup is not proof of
+	// ownership. Reject a load balancer that does not belong to this service/cluster.
+	if err == nil && !loadBalancerBelongsToService(civolb, service) {
+		return nil, fmt.Errorf("load balancer %q does not belong to service %s/%s", civolb.Name, service.Namespace, service.Name)
+	}
 	return civolb, err
+}
+
+// loadBalancerBelongsToService reports whether the resolved load balancer is owned by
+// the given service in this cluster. The loadbalancer id/name annotations are
+// user-controlled, so a lookup hit alone is insufficient. It checks the rename-stable
+// signals: the cluster id (a UUID that survives cluster renames and is always set on
+// CCM-managed load balancers) must match this cluster, and the name must end with the
+// service's {namespace}-{serviceName} suffix. The cluster-name prefix is intentionally
+// not compared, since it changes when the cluster is renamed.
+func loadBalancerBelongsToService(civolb *civogo.LoadBalancer, service *v1.Service) bool {
+	if civolb.ClusterID != ClusterID {
+		return false
+	}
+	return strings.HasSuffix(civolb.Name, fmt.Sprintf("-%s-%s", service.Namespace, service.Name))
 }
 
 func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node, civoClient civogo.Clienter, kclient kubernetes.Interface) error {
