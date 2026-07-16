@@ -306,6 +306,7 @@ var _ cloudprovider.LoadBalancer = new(loadbalancer)
 // TestGetLoadBalabcer is a test for GetLoadBalancer
 func TestGetLoadBalanacer(t *testing.T) {
 	g := NewWithT(t)
+	ClusterID = "a32fe5eb-1922-43e8-81bc-7f83b4011334"
 	tests := []struct {
 		name     string
 		service  *corev1.Service
@@ -345,7 +346,7 @@ func TestGetLoadBalanacer(t *testing.T) {
 			store: []civogo.LoadBalancer{
 				{
 					ID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-					Name:                  "civo-lb-test",
+					Name:                  "test-default-test",
 					Algorithm:             "round-robin",
 					PublicIP:              "192.168.11.11",
 					FirewallID:            "fc91d382-2609-4f5c-a875-1491776fab8c",
@@ -663,7 +664,7 @@ func TestEnsureLoadBalancer(t *testing.T) {
 			store: []civogo.LoadBalancer{
 				{
 					ID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-					Name:                  "civo-lb-test-update",
+					Name:                  "test-default-test-update",
 					Algorithm:             "round-robin",
 					PublicIP:              "192.168.11.11",
 					FirewallID:            "fc91d382-2609-4f5c-a875-1491776fab8c",
@@ -737,6 +738,7 @@ func TestEnsureLoadBalancer(t *testing.T) {
 // TestUpdateLoadBalancer tests the update of a load balancer
 func TestUpdateLoadBalancer(t *testing.T) {
 	g := NewWithT(t)
+	ClusterID = "a32fe5eb-1922-43e8-81bc-7f83b4011334"
 	tests := []struct {
 		name    string
 		service *corev1.Service
@@ -800,7 +802,7 @@ func TestUpdateLoadBalancer(t *testing.T) {
 			store: []civogo.LoadBalancer{
 				{
 					ID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-					Name:                  "civo-lb-test-update",
+					Name:                  "test-default-test-update",
 					Algorithm:             "round-robin",
 					PublicIP:              "192.168.11.11",
 					FirewallID:            "fc91d382-2609-4f5c-a875-1491776fab8c",
@@ -872,6 +874,7 @@ func TestUpdateLoadBalancer(t *testing.T) {
 // TestEnsureLoadBalancerDeleted tests the ensureLoadBalancerDeleted function
 func TestEnsureLoadBalancerDeleted(t *testing.T) {
 	g := NewGomegaWithT(t)
+	ClusterID = "a32fe5eb-1922-43e8-81bc-7f83b4011334"
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -898,7 +901,7 @@ func TestEnsureLoadBalancerDeleted(t *testing.T) {
 	store := []civogo.LoadBalancer{
 		{
 			ID:                    "6dc1c87d-b8a1-42cd-8fc6-8293378e5715",
-			Name:                  "civo-lb-test-update",
+			Name:                  "test-default-test",
 			Algorithm:             "round-robin",
 			PublicIP:              "192.168.11.11",
 			FirewallID:            "fc91d382-2609-4f5c-a875-1491776fab8c",
@@ -930,6 +933,147 @@ func TestEnsureLoadBalancerDeleted(t *testing.T) {
 
 	err = lb.EnsureLoadBalancerDeleted(context.Background(), "test", service)
 	g.Expect(err).To(BeNil())
+}
+
+// TestLoadBalancerBelongsToService verifies the ownership check that prevents a
+// service from acting on a load balancer it does not own via user-controlled
+// loadbalancer-id/name annotations.
+func TestLoadBalancerBelongsToService(t *testing.T) {
+	g := NewWithT(t)
+	ClusterID = "a32fe5eb-1922-43e8-81bc-7f83b4011334"
+
+	svc := func(ns, name string) *corev1.Service {
+		return &corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: name}}
+	}
+
+	tests := []struct {
+		name     string
+		civolb   *civogo.LoadBalancer
+		service  *corev1.Service
+		expected bool
+	}{
+		{
+			name:     "owned load balancer is accepted",
+			civolb:   &civogo.LoadBalancer{ClusterID: ClusterID, Name: "prod-default-web"},
+			service:  svc("default", "web"),
+			expected: true,
+		},
+		{
+			name:     "accepted regardless of cluster-name prefix (survives cluster rename)",
+			civolb:   &civogo.LoadBalancer{ClusterID: ClusterID, Name: "old-cluster-name-default-web"},
+			service:  svc("default", "web"),
+			expected: true,
+		},
+		{
+			name:     "cross-cluster load balancer is rejected",
+			civolb:   &civogo.LoadBalancer{ClusterID: "another-cluster-id", Name: "prod-default-web"},
+			service:  svc("default", "web"),
+			expected: false,
+		},
+		{
+			name:     "load balancer without a cluster id is rejected",
+			civolb:   &civogo.LoadBalancer{ClusterID: "", Name: "prod-default-web"},
+			service:  svc("default", "web"),
+			expected: false,
+		},
+		{
+			name:     "cross-namespace load balancer is rejected",
+			civolb:   &civogo.LoadBalancer{ClusterID: ClusterID, Name: "prod-victim-web"},
+			service:  svc("attacker", "web"),
+			expected: false,
+		},
+		{
+			name:     "different service name is rejected",
+			civolb:   &civogo.LoadBalancer{ClusterID: ClusterID, Name: "prod-default-other"},
+			service:  svc("default", "web"),
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			g.Expect(loadBalancerBelongsToService(test.civolb, test.service)).To(Equal(test.expected))
+		})
+	}
+}
+
+// TestEnsureLoadBalancerDeletedRejectsForeignLB ensures a low-privilege service that
+// points its loadbalancer-id annotation at another tenant's load balancer cannot
+// delete it (cross-cluster deletion / denial-of-service vector).
+func TestEnsureLoadBalancerDeletedRejectsForeignLB(t *testing.T) {
+	g := NewWithT(t)
+	ClusterID = "attacker-cluster-id"
+
+	victim := civogo.LoadBalancer{
+		ID:        "victim-lb-id",
+		Name:      "victim-cluster-prod-web",
+		ClusterID: "victim-cluster-id",
+		State:     statusAvailable,
+	}
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "evil",
+			Namespace: "attacker-ns",
+			Annotations: map[string]string{
+				annotationCivoLoadBalancerID: "victim-lb-id",
+			},
+		},
+		Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+	}
+
+	fakeCivoClient, err := civogo.NewFakeClient()
+	g.Expect(err).To(BeNil())
+	fakeCivoClient.LoadBalancers = []civogo.LoadBalancer{victim}
+
+	clients := newClients(fakeCivoClient)
+	clients.kclient = fake.NewSimpleClientset()
+	lb := &loadbalancer{client: clients}
+
+	// The delete is refused, and crucially the victim load balancer still exists.
+	err = lb.EnsureLoadBalancerDeleted(context.Background(), "attacker-cluster", service)
+	g.Expect(err).NotTo(BeNil())
+
+	got, err := fakeCivoClient.GetLoadBalancer("victim-lb-id")
+	g.Expect(err).To(BeNil())
+	g.Expect(got.ID).To(Equal("victim-lb-id"))
+}
+
+// TestGetLoadBalancerRejectsForeignLB ensures a service cannot read another tenant's
+// load balancer configuration by pointing its annotation at a same-cluster load
+// balancer owned by a different namespace (information-disclosure vector).
+func TestGetLoadBalancerRejectsForeignLB(t *testing.T) {
+	g := NewWithT(t)
+	ClusterID = "shared-cluster-id"
+
+	victim := civogo.LoadBalancer{
+		ID:        "victim-lb-id",
+		Name:      "cluster-prod-web",
+		ClusterID: "shared-cluster-id",
+		PublicIP:  "192.168.11.11",
+		State:     statusAvailable,
+	}
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web",
+			Namespace: "attacker",
+			Annotations: map[string]string{
+				annotationCivoLoadBalancerID: "victim-lb-id",
+			},
+		},
+		Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+	}
+
+	fakeCivoClient, err := civogo.NewFakeClient()
+	g.Expect(err).To(BeNil())
+	fakeCivoClient.LoadBalancers = []civogo.LoadBalancer{victim}
+
+	clients := newClients(fakeCivoClient)
+	clients.kclient = fake.NewSimpleClientset()
+	lb := &loadbalancer{client: clients}
+
+	status, exists, _ := lb.GetLoadBalancer(context.Background(), "cluster", service)
+	g.Expect(exists).To(BeFalse())
+	g.Expect(status).To(BeNil())
 }
 
 func TestGetProtocol(t *testing.T) {
