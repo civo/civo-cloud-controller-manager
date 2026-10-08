@@ -350,8 +350,8 @@ func getLoadBalancer(ctx context.Context, c civogo.Clienter, kclient kubernetes.
 	} else {
 		cluster, cerr := c.GetKubernetesCluster(ClusterID)
 		if cerr != nil {
-			klog.Errorf("Unable to get kubernetes cluster, error: %v", err)
-			return nil, err
+			klog.Errorf("Unable to get kubernetes cluster, error: %v", cerr)
+			return nil, cerr
 		}
 		lbName := getLoadBalancerName(cluster.Name, service)
 		civolb, err = c.GetLoadBalancer(lbName)

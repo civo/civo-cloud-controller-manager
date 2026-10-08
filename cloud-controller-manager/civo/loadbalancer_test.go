@@ -2,6 +2,7 @@ package civo
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/civo/civogo"
@@ -1072,6 +1073,43 @@ func TestGetLoadBalancerRejectsForeignLB(t *testing.T) {
 	lb := &loadbalancer{client: clients}
 
 	status, exists, _ := lb.GetLoadBalancer(context.Background(), "cluster", service)
+	g.Expect(exists).To(BeFalse())
+	g.Expect(status).To(BeNil())
+}
+
+// clusterErrorClient is a FakeClient whose GetKubernetesCluster always fails.
+type clusterErrorClient struct {
+	*civogo.FakeClient
+	err error
+}
+
+func (c *clusterErrorClient) GetKubernetesCluster(string) (*civogo.KubernetesCluster, error) {
+	return nil, c.err
+}
+
+// TestGetLoadBalancerClusterLookupError ensures that a failed cluster lookup (e.g. an
+// invalid API key) is returned as an error instead of causing a nil pointer panic.
+func TestGetLoadBalancerClusterLookupError(t *testing.T) {
+	g := NewWithT(t)
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web",
+			Namespace: "default",
+		},
+		Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+	}
+
+	fakeCivoClient, err := civogo.NewFakeClient()
+	g.Expect(err).To(BeNil())
+	lookupErr := errors.New(`net/http: invalid header field value for "Authorization"`)
+
+	clients := newClients(&clusterErrorClient{FakeClient: fakeCivoClient, err: lookupErr})
+	clients.kclient = fake.NewSimpleClientset()
+	lb := &loadbalancer{client: clients}
+
+	status, exists, err := lb.GetLoadBalancer(context.Background(), "cluster", service)
+	g.Expect(err).To(MatchError(lookupErr))
 	g.Expect(exists).To(BeFalse())
 	g.Expect(status).To(BeNil())
 }
