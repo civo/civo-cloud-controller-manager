@@ -375,7 +375,16 @@ func TestInstanceExistsByProviderID(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(exists).To(BeTrue())
 
+	// Instance positively absent from the cluster: report it gone so the
+	// node lifecycle controller deletes the stale Node.
 	exists, err = instances.InstanceExistsByProviderID(context.TODO(), "civo://non-existing-provider-id")
+	g.Expect(err).To(BeNil())
+	g.Expect(exists).To(BeFalse())
+
+	// Lookup failed for another reason (here: cluster not found by the API):
+	// must not be treated as a missing instance, or healthy nodes get deleted.
+	ClusterID = "00000000-0000-0000-0000-000000000000"
+	exists, err = instances.InstanceExistsByProviderID(context.TODO(), providerID)
 	g.Expect(err).To(Not(BeNil()))
 	g.Expect(exists).To(BeTrue())
 }
