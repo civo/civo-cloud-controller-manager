@@ -2,11 +2,11 @@ package civo
 
 import (
 	"context"
+	"errors"
 
 	"github.com/civo/civo-cloud-controller-manager/cloud-controller-manager/pkg/utils"
 	"github.com/civo/civogo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	cloudprovider "k8s.io/cloud-provider"
 	"k8s.io/klog/v2"
@@ -118,13 +118,13 @@ func (*instances) CurrentNodeName(ctx context.Context, hostname string) (types.N
 // This method should still return true for instances that exist but are stopped/sleeping.
 func (i *instances) InstanceExistsByProviderID(ctx context.Context, providerID string) (bool, error) {
 	_, err := utils.CivoInstanceFromProviderID(providerID, ClusterID, i.client.civoClient)
-	if err != nil && !errors.IsNotFound(err) {
-		klog.Errorf("Unable to get instance by provider id: %s, error: %v", providerID, err)
-		return true, err
+	if errors.Is(err, cloudprovider.InstanceNotFound) {
+		return false, nil
 	}
 
-	if errors.IsNotFound(err) {
-		return false, nil
+	if err != nil {
+		klog.Errorf("Unable to get instance by provider id: %s, error: %v", providerID, err)
+		return true, err
 	}
 
 	return true, nil

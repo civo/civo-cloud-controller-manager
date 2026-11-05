@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,11 +22,22 @@ func civoInstanceIDFromProviderID(providerID string) (string, error) {
 	return strings.TrimPrefix(providerID, "civo://"), nil
 }
 
+// lookupError maps a civogo lookup error to cloudprovider.InstanceNotFound only when
+// the API positively reported no match. Any other error (timeout, 5xx, auth) is
+// returned as-is: callers such as InstanceExistsByProviderID delete the node on
+// InstanceNotFound, so a transient API failure must never be reported as one.
+func lookupError(err error) error {
+	if errors.Is(err, civogo.ZeroMatchesError) {
+		return cloudprovider.InstanceNotFound
+	}
+	return err
+}
+
 func civoInstanceFromID(clusterID, instanceID string, c civogo.Clienter) (civogo.Instance, error) {
 	instance, err := c.FindKubernetesClusterInstance(clusterID, instanceID)
 	if err != nil {
 		klog.Errorf("Unable to find instance by id: %s, error: %v", instanceID, err)
-		return civogo.Instance{}, cloudprovider.InstanceNotFound
+		return civogo.Instance{}, lookupError(err)
 	}
 
 	return *instance, nil
@@ -51,7 +63,7 @@ func CivoInstanceFromName(clusterID, instanceName string, c civogo.Clienter) (ci
 	instance, err := c.FindKubernetesClusterInstance(clusterID, instanceName)
 	if err != nil {
 		klog.Errorf("Unable to find instance by name: %s, error: %v", instanceName, err)
-		return civogo.Instance{}, cloudprovider.InstanceNotFound
+		return civogo.Instance{}, lookupError(err)
 	}
 
 	return *instance, nil
