@@ -175,19 +175,7 @@ func (l *loadbalancer) updateLBConfig(civolb *civogo.LoadBalancer, service *v1.S
 		}
 	}
 
-	backends := []civogo.LoadBalancerBackendConfig{}
-	for _, port := range service.Spec.Ports {
-		for _, node := range nodes {
-			backends = append(backends, civogo.LoadBalancerBackendConfig{
-				IP:              node.Status.Addresses[0].Address,
-				Protocol:        getProtocol(service, port),
-				SourcePort:      port.Port,
-				TargetPort:      port.NodePort,
-				HealthCheckPort: service.Spec.HealthCheckNodePort,
-			})
-		}
-	}
-	lbuc.Backends = backends
+	lbuc.Backends = buildBackends(service, nodes)
 
 	if ip := getReservedIPFromAnnotation(service); ip != "" {
 		rip, err := l.client.civoClient.FindIP(ip)
@@ -428,19 +416,7 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 		lbc.MaxConcurrentRequests = &maxReq
 	}
 
-	backends := []civogo.LoadBalancerBackendConfig{}
-	for _, port := range service.Spec.Ports {
-		for _, node := range nodes {
-			backends = append(backends, civogo.LoadBalancerBackendConfig{
-				IP:              node.Status.Addresses[0].Address,
-				Protocol:        getProtocol(service, port),
-				SourcePort:      port.Port,
-				TargetPort:      port.NodePort,
-				HealthCheckPort: service.Spec.HealthCheckNodePort,
-			})
-		}
-	}
-	lbc.Backends = backends
+	lbc.Backends = buildBackends(service, nodes)
 
 	lb, err := civoClient.CreateLoadBalancer(&lbc)
 	if err != nil {
@@ -467,6 +443,47 @@ func createLoadBalancer(ctx context.Context, clusterName string, service *v1.Ser
 	}
 
 	return nil
+}
+
+// buildBackends returns one backend per service port and node. Nodes that
+// have no address yet (for example a node that joined but was not initialized
+// by the cloud node controller) are skipped instead of indexing into an empty
+// address list.
+func buildBackends(service *v1.Service, nodes []*v1.Node) []civogo.LoadBalancerBackendConfig {
+	backends := []civogo.LoadBalancerBackendConfig{}
+	for _, port := range service.Spec.Ports {
+		for _, node := range nodes {
+			ip := nodeBackendIP(node)
+			if ip == "" {
+				klog.Warningf("Skipping node %s as a load balancer backend: it has no address yet", node.Name)
+				continue
+			}
+			backends = append(backends, civogo.LoadBalancerBackendConfig{
+				IP:              ip,
+				Protocol:        getProtocol(service, port),
+				SourcePort:      port.Port,
+				TargetPort:      port.NodePort,
+				HealthCheckPort: service.Spec.HealthCheckNodePort,
+			})
+		}
+	}
+	return backends
+}
+
+// nodeBackendIP returns the node's InternalIP, or its first non-empty address
+// when it has no InternalIP, or "" when it has no address at all.
+func nodeBackendIP(node *v1.Node) string {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == v1.NodeInternalIP && addr.Address != "" {
+			return addr.Address
+		}
+	}
+	for _, addr := range node.Status.Addresses {
+		if addr.Address != "" {
+			return addr.Address
+		}
+	}
+	return ""
 }
 
 func updateServiceAnnotation(service *v1.Service, key, value string) {
