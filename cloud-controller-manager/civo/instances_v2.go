@@ -97,9 +97,16 @@ func (i *instancesV2) applyPoolLabelsAndTaints(ctx context.Context, nodeName, in
 		return fmt.Errorf("getting cluster %s: %w", ClusterID, err)
 	}
 
-	pool := findPoolForNode(cluster, nodeName, instanceID)
-	if pool == nil {
+	match := findPoolForNode(cluster, nodeName, instanceID)
+	if match == nil {
 		return fmt.Errorf("no pool in cluster %s contains node %s", ClusterID, nodeName)
+	}
+
+	// The cluster endpoint does not return pool labels and taints; only the
+	// pool endpoint does.
+	pool, err := i.client.civoClient.GetKubernetesClusterPool(ClusterID, match.ID)
+	if err != nil {
+		return fmt.Errorf("getting pool %s of cluster %s: %w", match.ID, ClusterID, err)
 	}
 
 	nodes := i.client.kclient.CoreV1().Nodes()

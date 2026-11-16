@@ -49,7 +49,27 @@ func newV2TestSetup(t *testing.T, pools []civogo.KubernetesPool, node *corev1.No
 	ClusterID = v2ClusterID
 
 	fakeK8s := fake.NewSimpleClientset(node)
-	return &instancesV2{client: &clients{civoClient: fakeCivoClient, kclient: fakeK8s}}, fakeK8s
+	return &instancesV2{client: &clients{civoClient: &clusterWithoutPoolMetaClient{fakeCivoClient}, kclient: fakeK8s}}, fakeK8s
+}
+
+// clusterWithoutPoolMetaClient mirrors the real Civo API: the cluster endpoint
+// omits pool labels and taints, which only the pool endpoint returns.
+type clusterWithoutPoolMetaClient struct {
+	*civogo.FakeClient
+}
+
+func (c *clusterWithoutPoolMetaClient) GetKubernetesCluster(id string) (*civogo.KubernetesCluster, error) {
+	cluster, err := c.FakeClient.GetKubernetesCluster(id)
+	if err != nil {
+		return nil, err
+	}
+	stripped := *cluster
+	stripped.Pools = make([]civogo.KubernetesPool, len(cluster.Pools))
+	for idx, p := range cluster.Pools {
+		p.Labels, p.Taints = nil, nil
+		stripped.Pools[idx] = p
+	}
+	return &stripped, nil
 }
 
 func newNode(labels map[string]string, taints ...corev1.Taint) *corev1.Node {
@@ -143,7 +163,7 @@ func TestInstanceMetadataFailsWhenClusterLookupFails(t *testing.T) {
 	g := NewWithT(t)
 	node := newNode(nil, uninitializedTaint)
 	i, _ := newV2TestSetup(t, nil, node)
-	fc := i.client.civoClient.(*civogo.FakeClient)
+	fc := i.client.civoClient.(*clusterWithoutPoolMetaClient).FakeClient
 	i.client.civoClient = &clusterErrorClient{FakeClient: fc, err: errors.New("api down")}
 
 	_, err := i.InstanceMetadata(context.TODO(), node)
