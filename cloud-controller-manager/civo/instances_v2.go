@@ -97,16 +97,16 @@ func (i *instancesV2) applyPoolLabelsAndTaints(ctx context.Context, nodeName, in
 		return fmt.Errorf("getting cluster %s: %w", ClusterID, err)
 	}
 
-	match := findPoolForNode(cluster, nodeName, instanceID)
-	if match == nil {
+	poolID, ok := findPoolIDForNode(cluster, nodeName, instanceID)
+	if !ok {
 		return fmt.Errorf("no pool in cluster %s contains node %s", ClusterID, nodeName)
 	}
 
 	// The cluster endpoint does not return pool labels and taints; only the
 	// pool endpoint does.
-	pool, err := i.client.civoClient.GetKubernetesClusterPool(ClusterID, match.ID)
+	pool, err := i.client.civoClient.GetKubernetesClusterPool(ClusterID, poolID)
 	if err != nil {
-		return fmt.Errorf("getting pool %s of cluster %s: %w", match.ID, ClusterID, err)
+		return fmt.Errorf("getting pool %s of cluster %s: %w", poolID, ClusterID, err)
 	}
 
 	nodes := i.client.kclient.CoreV1().Nodes()
@@ -139,21 +139,22 @@ func hasUninitializedTaint(node *v1.Node) bool {
 	return false
 }
 
-func findPoolForNode(cluster *civogo.KubernetesCluster, nodeName, instanceID string) *civogo.KubernetesPool {
-	for idx := range cluster.Pools {
-		pool := &cluster.Pools[idx]
+// findPoolIDForNode returns only the ID of the node's pool: the cluster
+// response's pools carry no labels or taints, so they must not be used for that.
+func findPoolIDForNode(cluster *civogo.KubernetesCluster, nodeName, instanceID string) (string, bool) {
+	for _, pool := range cluster.Pools {
 		for _, name := range pool.InstanceNames {
 			if strings.EqualFold(name, nodeName) {
-				return pool
+				return pool.ID, true
 			}
 		}
 		for _, inst := range pool.Instances {
 			if inst.ID == instanceID || strings.EqualFold(inst.Hostname, nodeName) {
-				return pool
+				return pool.ID, true
 			}
 		}
 	}
-	return nil
+	return "", false
 }
 
 func mergeLabels(node *v1.Node, labels map[string]string) bool {

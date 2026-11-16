@@ -1077,9 +1077,9 @@ func TestGetLoadBalancerRejectsForeignLB(t *testing.T) {
 	g.Expect(status).To(BeNil())
 }
 
-// clusterErrorClient is a FakeClient whose GetKubernetesCluster always fails.
+// clusterErrorClient wraps a civogo.Clienter so that GetKubernetesCluster always fails.
 type clusterErrorClient struct {
-	*civogo.FakeClient
+	civogo.Clienter
 	err error
 }
 
@@ -1104,7 +1104,7 @@ func TestGetLoadBalancerClusterLookupError(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	lookupErr := errors.New(`net/http: invalid header field value for "Authorization"`)
 
-	clients := newClients(&clusterErrorClient{FakeClient: fakeCivoClient, err: lookupErr})
+	clients := newClients(&clusterErrorClient{Clienter: fakeCivoClient, err: lookupErr})
 	clients.kclient = fake.NewSimpleClientset()
 	lb := &loadbalancer{client: clients}
 

@@ -58,6 +58,16 @@ type clusterWithoutPoolMetaClient struct {
 	*civogo.FakeClient
 }
 
+// poolErrorClient wraps a civogo.Clienter so that GetKubernetesClusterPool always fails.
+type poolErrorClient struct {
+	civogo.Clienter
+	err error
+}
+
+func (c *poolErrorClient) GetKubernetesClusterPool(string, string) (*civogo.KubernetesPool, error) {
+	return nil, c.err
+}
+
 func (c *clusterWithoutPoolMetaClient) GetKubernetesCluster(id string) (*civogo.KubernetesCluster, error) {
 	cluster, err := c.FakeClient.GetKubernetesCluster(id)
 	if err != nil {
@@ -111,16 +121,6 @@ func TestInstanceMetadataAppliesPoolLabelsAndTaints(t *testing.T) {
 				corev1.Taint{Key: "dedicated", Value: "old", Effect: corev1.TaintEffectNoSchedule}),
 			wantTaints: []corev1.Taint{uninitializedTaint, poolTaint},
 		},
-		{
-			name: "initialized node is left untouched",
-			pools: []civogo.KubernetesPool{{
-				ID:            "pool-1",
-				InstanceNames: []string{v2NodeName},
-				Labels:        map[string]string{"pool": "gpu"},
-				Taints:        []corev1.Taint{poolTaint},
-			}},
-			node: newNode(nil),
-		},
 	}
 
 	for _, tt := range tests {
@@ -163,11 +163,55 @@ func TestInstanceMetadataFailsWhenClusterLookupFails(t *testing.T) {
 	g := NewWithT(t)
 	node := newNode(nil, uninitializedTaint)
 	i, _ := newV2TestSetup(t, nil, node)
-	fc := i.client.civoClient.(*clusterWithoutPoolMetaClient).FakeClient
-	i.client.civoClient = &clusterErrorClient{FakeClient: fc, err: errors.New("api down")}
+	i.client.civoClient = &clusterErrorClient{Clienter: i.client.civoClient, err: errors.New("api down")}
 
 	_, err := i.InstanceMetadata(context.TODO(), node)
 	g.Expect(err).To(HaveOccurred())
+}
+
+// The node must stay uninitialized (InstanceMetadata errors) when its pool's
+// labels and taints cannot be fetched.
+func TestInstanceMetadataFailsWhenPoolLookupFails(t *testing.T) {
+	g := NewWithT(t)
+	node := newNode(nil, uninitializedTaint)
+	i, k := newV2TestSetup(t, []civogo.KubernetesPool{{
+		ID:            "pool-1",
+		InstanceNames: []string{v2NodeName},
+		Labels:        map[string]string{"pool": "gpu"},
+	}}, node)
+	i.client.civoClient = &poolErrorClient{Clienter: i.client.civoClient, err: errors.New("api down")}
+
+	_, err := i.InstanceMetadata(context.TODO(), node)
+	g.Expect(err).To(HaveOccurred())
+
+	got, err := k.CoreV1().Nodes().Get(context.TODO(), v2NodeName, metav1.GetOptions{})
+	g.Expect(err).To(BeNil())
+	g.Expect(got.Labels).To(BeNil())
+}
+
+// An initialized node must not trigger any cluster or pool lookups: both fail
+// here, so a regression in the uninitialized-taint guard returns an error.
+func TestInstanceMetadataInitializedNodeSkipsPoolLookups(t *testing.T) {
+	g := NewWithT(t)
+	node := newNode(map[string]string{"existing": "x"})
+	i, k := newV2TestSetup(t, []civogo.KubernetesPool{{
+		ID:            "pool-1",
+		InstanceNames: []string{v2NodeName},
+		Labels:        map[string]string{"pool": "gpu"},
+	}}, node)
+	i.client.civoClient = &poolErrorClient{
+		Clienter: &clusterErrorClient{Clienter: i.client.civoClient, err: errors.New("unexpected cluster lookup")},
+		err:      errors.New("unexpected pool lookup"),
+	}
+
+	meta, err := i.InstanceMetadata(context.TODO(), node)
+	g.Expect(err).To(BeNil())
+	g.Expect(meta.ProviderID).To(Equal("civo://" + v2InstanceID))
+
+	got, err := k.CoreV1().Nodes().Get(context.TODO(), v2NodeName, metav1.GetOptions{})
+	g.Expect(err).To(BeNil())
+	g.Expect(got.Labels).To(Equal(node.Labels))
+	g.Expect(got.Spec.Taints).To(BeEmpty())
 }
 
 func TestInstanceExistsV2(t *testing.T) {
